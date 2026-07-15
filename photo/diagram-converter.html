@@ -221,6 +221,41 @@
     padding: 40px;
     font-size: 13px;
   }
+  /* 格式不匹配提示卡 */
+  .format-mismatch {
+    margin: 40px auto; max-width: 480px;
+    text-align: center; padding: 32px 24px;
+    border: 1px dashed var(--border);
+    border-radius: 12px;
+    background: var(--accent-soft);
+  }
+  .fm-icon { font-size: 38px; margin-bottom: 8px; }
+  .fm-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .fm-reason { font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5; }
+  .fm-switch {
+    border: 1px solid var(--accent); background: var(--accent); color: #fff;
+    padding: 8px 18px; border-radius: 8px; font-size: 13px; cursor: pointer;
+    transition: background .15s;
+  }
+  .fm-switch:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+  /* 普通渲染错误 */
+  .render-error {
+    margin: 40px auto; max-width: 640px;
+    padding: 24px;
+    border-left: 3px solid var(--danger);
+    background: var(--panel);
+    border-radius: 0 8px 8px 0;
+  }
+  .re-title { font-size: 15px; font-weight: 600; color: var(--danger); margin-bottom: 8px; }
+  .re-msg { font-size: 13px; color: var(--text); line-height: 1.6; word-break: break-word; }
+  .re-detail { margin-top: 12px; font-size: 12px; color: var(--text-muted); }
+  .re-detail summary { cursor: pointer; user-select: none; padding: 4px 0; }
+  .re-detail summary:hover { color: var(--text); }
+  .re-detail pre {
+    margin-top: 8px; padding: 10px 12px; max-height: 200px; overflow: auto;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  }
   /* 状态栏 */
   footer {
     display: flex;
@@ -699,14 +734,81 @@ async function render() {
     if (token !== renderToken) return;
     lastSvgEl = null;
     lastSvgText = null;
-    previewEl.innerHTML = `<div class="empty-hint" style="color:var(--danger)">${escapeHtml(e.message || String(e))}</div>`;
-    setStatus('err', '渲染失败：' + (e.message || e));
+    // 1) 先看是不是标签/内容不匹配（最常见的"格式选错"情况）
+    const fm = detectFormatHint(code);
+    if (fm && fm.detected !== currentFmt) {
+      showFormatMismatch(fm);
+      updateSizeInfo();
+      return;
+    }
+    // 2) 普通渲染失败：简洁展示，详细原因在状态栏
+    const short = summarizeError(e.message || String(e));
+    previewEl.innerHTML = `
+      <div class="render-error">
+        <div class="re-title">渲染失败</div>
+        <div class="re-msg">${escapeHtml(short)}</div>
+        <details class="re-detail">
+          <summary>查看完整错误</summary>
+          <pre>${escapeHtml(String(e.message || e))}</pre>
+        </details>
+      </div>`;
+    setStatus('err', '渲染失败：' + short);
+    toast('完整错误已展开在预览区，可点 "查看完整错误"');
     updateSizeInfo();
   }
 }
 
 function escapeHtml(s) {
   return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// 从错误文本里提取最有用的一行（去掉 Mermaid 那种超长 context）
+function summarizeError(msg) {
+  if (!msg) return '未知错误';
+  // 找第一个短句（≤ 120 字符），或者第一行
+  const lines = String(msg).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+  for (const ln of lines) {
+    // 去掉 "Parse error on line N:" 这种冗余前缀
+    const m = ln.match(/^(?:Parse error[^:]*:\s*)?(.{1,180})$/);
+    if (m) return m[1];
+  }
+  return String(msg).slice(0, 180);
+}
+
+// 检测"当前标签 vs 实际内容"是否错配
+function detectFormatHint(content) {
+  const c = (content || '').trim();
+  if (!c) return null;
+  if (c.startsWith('@startuml') || c.includes('\n@startuml')) return { detected: 'plantuml', reason: '内容以 @startuml 开头，是 PlantUML 语法' };
+  // Mermaid 关键字优先于 Graphviz DOT（两者都用 graph/flowchart 开头）
+  if (/^(flowchart|sequenceDiagram|classDiagram|stateDiagram|stateDiagram-v2|erDiagram|journey|gantt|pieDiagram|gitGraph|infoDiagram|requirementDiagram)\b/m.test(c)) {
+    return { detected: 'mermaid', reason: '内容以 Mermaid 图表类型关键字开头（flowchart / sequenceDiagram / classDiagram 等）' };
+  }
+  // Mermaid 的 graph <dir> / <type> 也走 Mermaid
+  if (/^graph\s+(TD|LR|BT|RL|TB)\b/m.test(c) || /^subgraph\b/m.test(c)) {
+    return { detected: 'mermaid', reason: '内容以 Mermaid 的 graph + 方向（TD/LR/BT...）开头' };
+  }
+  // Graphviz DOT
+  if (/^(strict\s+)?(digraph|graph)\b/m.test(c)) return { detected: 'graphviz', reason: '内容以 digraph/graph 开头，是 Graphviz DOT 语法' };
+  return null;
+}
+function showFormatMismatch(fm) {
+  if (!fm) return;
+  const target = fm.detected;
+  if (target === currentFmt) return;
+  previewEl.innerHTML = `
+    <div class="format-mismatch">
+      <div class="fm-icon">${target === 'plantuml' ? '🌱' : target === 'graphviz' ? '🔵' : '🟦'}</div>
+      <div class="fm-title">看起来是 <b>${target.toUpperCase()}</b> 语法</div>
+      <div class="fm-reason">${escapeHtml(fm.reason)}</div>
+      <button class="fm-switch" id="fmSwitchBtn">→ 切到 ${target.toUpperCase()} 标签</button>
+    </div>`;
+  const btn = document.getElementById('fmSwitchBtn');
+  if (btn) btn.onclick = () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === target));
+    setFormat(target);
+  };
+  setStatus('err', `格式不匹配：当前 ${currentFmt.toUpperCase()} 标签，但内容是 ${target.toUpperCase()}`);
 }
 
 /* ---------- 尺寸信息 ---------- */
