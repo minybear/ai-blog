@@ -16,8 +16,29 @@
             line-height: 1.6;
             color: #333;
             background-color: #f5f5f5;
-            padding: 20px;
+            padding: 64px 20px 20px;
         }
+
+        .topbar {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+            display: flex; align-items: center; gap: 8px;
+            padding: 10px 16px;
+            background: #fff;
+            border-bottom: 1px solid #e5e7eb;
+            box-shadow: 0 1px 3px rgba(0,0,0,.04);
+        }
+        .back-link {
+            font-size: 13px;
+            color: #2f6df6;
+            text-decoration: none;
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            background: #f6f7f9;
+            transition: all .15s;
+            white-space: nowrap;
+        }
+        .back-link:hover { border-color: #2f6df6; }
 
         .container {
             max-width: 1200px;
@@ -321,6 +342,9 @@
     </style>
 </head>
 <body>
+    <div class="topbar">
+        <a class="back-link" id="backLink" href="#" title="返回工具箱">← 工具箱</a>
+    </div>
     <div class="container">
         <h1>PDF转图片工具 <span class="version-badge">V2</span></h1>
         <div class="upload-area">
@@ -1178,6 +1202,22 @@
                 });
             }
         });
+    </script>
+    <script>
+    // 「← 工具箱」回退：被首页 iframe 嵌入时隐藏；直接访问时跳到仓库根 index.html
+    (function () {
+      var bl = document.getElementById('backLink');
+      if (!bl) return;
+      if (window.self !== window.top) { bl.style.display = 'none'; return; }
+      bl.addEventListener('click', function (e) {
+        e.preventDefault();
+        var segs = location.pathname.split('/').filter(Boolean);
+        var root = location.hostname.endsWith('github.io')
+          ? '/' + segs[0] + '/'
+          : (segs.length > 1 ? '../' : '');
+        location.href = root + 'index.html';
+      });
+    })();
     </script>
 </body>
 </html>

@@ -57,6 +57,19 @@
     border-bottom: 1px solid var(--border);
     flex-wrap: wrap;
   }
+  .back-link {
+    font-size: 13px;
+    color: var(--accent);
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    transition: all .15s;
+    white-space: nowrap;
+    order: -1;
+  }
+  .back-link:hover { border-color: var(--accent); }
   .logo {
     font-weight: 700;
     font-size: 15px;
@@ -332,6 +345,7 @@
 </head>
 <body data-theme-host>
   <header>
+    <a class="back-link" id="backLink" href="#" title="返回工具箱">← 工具箱</a>
     <div class="logo">📊 图表转图片 <span class="dot">·</span> HD</div>
 
     <div class="tabs" id="formatTabs">
@@ -941,6 +955,22 @@ const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-schem
 setTheme(prefersDark ? 'dark' : 'light');
 setFormat('mermaid');
 render();
+</script>
+<script>
+// 「← 工具箱」回退：被首页 iframe 嵌入时隐藏；直接访问时跳到仓库根 index.html
+(function () {
+  var bl = document.getElementById('backLink');
+  if (!bl) return;
+  if (window.self !== window.top) { bl.style.display = 'none'; return; }
+  bl.addEventListener('click', function (e) {
+    e.preventDefault();
+    var segs = location.pathname.split('/').filter(Boolean); // ['ai-blog','photo','diagram-converter.html']
+    var root = location.hostname.endsWith('github.io')
+      ? '/' + segs[0] + '/'
+      : (segs.length > 1 ? '../' : '');
+    location.href = root + 'index.html';
+  });
+})();
 </script>
 </body>
 </html>
