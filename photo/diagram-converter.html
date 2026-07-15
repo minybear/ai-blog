@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图表转高清图片工具 · Diagram to HD Image</title>
+<!-- 第三方库（全部走 CDN，纯前端渲染） -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/viz.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/viz.js@2.1.2/full.render.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f7f9;
+    --panel: #ffffff;
+    --border: #e2e5ea;
+    --text: #1f2329;
+    --text-muted: #8a909a;
+    --accent: #2f6df6;
+    --accent-hover: #1f57d8;
+    --danger: #e5484d;
+    --code-bg: #1e1e2e;
+    --code-text: #e6e6e6;
+    --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  }
+  html[data-theme="dark"] {
+    --bg: #16171a;
+    --panel: #1d1f23;
+    --border: #2c2f36;
+    --text: #e7e9ee;
+    --text-muted: #8a909a;
+    --accent: #4d86ff;
+    --accent-hover: #6c98ff;
+    --danger: #ff6166;
+    --code-bg: #0e0f13;
+    --code-text: #d7d7db;
+    --shadow: 0 1px 3px rgba(0,0,0,.3);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    transition: background .2s, color .2s;
+  }
+  /* 顶部工具栏 */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .logo {
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo .dot { color: var(--accent); }
+  .tabs {
+    display: flex;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .tab {
+    padding: 6px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all .15s;
+    font-weight: 500;
+  }
+  .tab.active {
+    background: var(--accent);
+    color: #fff;
+  }
+  .tab:not(.active):hover { color: var(--text); }
+  .spacer { flex: 1; }
+  .ctrl-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn {
+    padding: 7px 12px;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 7px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: all .15s;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  .btn.primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; }
+  .btn.icon-only { padding: 7px 9px; }
+  select.btn {
+    appearance: none;
+    padding-right: 24px;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3' fill='none' stroke='%2388909a' stroke-width='1.5'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 8px center;
+  }
+  /* 主体 */
+  main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .pane.left { border-right: 1px solid var(--border); max-width: 50%; }
+  .pane-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    min-height: 34px;
+  }
+  .pane-header .title { font-weight: 600; color: var(--text); }
+  .pane-header .actions { display: flex; gap: 4px; }
+  .link-btn {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .link-btn:hover { background: var(--bg); }
+  textarea#code {
+    flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    padding: 14px 16px;
+    font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", Consolas, Monaco, monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    background: var(--code-bg);
+    color: var(--code-text);
+    tab-size: 2;
+  }
+  .preview-wrap {
+    flex: 1;
+    overflow: auto;
+    padding: 24px;
+    background:
+      linear-gradient(45deg, var(--bg) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--bg) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--bg) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--bg) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0;
+    background-color: #ffffff20;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+  }
+  html[data-theme="dark"] .preview-wrap { background-color: #00000020; }
+  #preview {
+    background: #ffffff;
+    box-shadow: var(--shadow);
+    border-radius: 4px;
+    padding: 12px;
+    max-width: 100%;
+    display: inline-block;
+    transform-origin: top center;
+  }
+  #preview svg { max-width: 100%; height: auto; display: block; }
+  #preview img { display: block; max-width: 100%; }
+  .empty-hint {
+    color: var(--text-muted);
+    text-align: center;
+    padding: 40px;
+    font-size: 13px;
+  }
+  /* 状态栏 */
+  footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 5px 14px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    color: var(--text-muted);
+    min-height: 28px;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #999;
+  }
+  .status-dot.ok { background: #30a46c; }
+  .status-dot.err { background: var(--danger); }
+  .status-dot.busy { background: #f5a623; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: .3; } }
+  .status-msg { flex: 1; }
+  .status-msg.err { color: var(--danger); }
+  /* 缩放控制 */
+  .zoom-bar { display: flex; gap: 4px; align-items: center; }
+  .zoom-val { width: 44px; text-align: center; }
+  /* toast */
+  #toast {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1f2329;
+    color: #fff;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all .25s;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 预览区小按钮 */
+  .btn-mini {
+    padding: 3px 10px; font-size: 12px; cursor: pointer;
+    background: var(--accent); color: #fff; border: none; border-radius: 5px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .btn-mini:hover { background: var(--accent-hover); }
+
+  /* 全屏预览 */
+  .fs-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: rgba(12,13,18,.94);
+    display: flex; flex-direction: column;
+    backdrop-filter: blur(2px);
+  }
+  .fs-overlay[hidden] { display: none; }
+  .fs-toolbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; gap: 12px;
+    background: rgba(0,0,0,.35); color: #fff;
+    flex-wrap: wrap;
+  }
+  .fs-info { font-size: 13px; opacity: .85; min-width: 56px; font-variant-numeric: tabular-nums; }
+  .fs-actions { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  .fs-sep { width: 1px; height: 18px; background: rgba(255,255,255,.25); margin: 0 4px; }
+  .fs-btn {
+    padding: 6px 12px; font-size: 13px; cursor: pointer;
+    background: rgba(255,255,255,.1); color: #fff;
+    border: 1px solid rgba(255,255,255,.2); border-radius: 6px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .fs-btn:hover { background: rgba(255,255,255,.22); }
+  .fs-close { background: var(--accent); border-color: var(--accent); }
+  .fs-close:hover { background: var(--accent-hover); }
+  .fs-stage {
+    flex: 1; overflow: hidden; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    cursor: grab;
+  }
+  .fs-stage.dragging { cursor: grabbing; }
+  .fs-img {
+    transform-origin: center center;
+    transition: transform .1s ease-out;
+    max-width: 92vw; max-height: 100%;
+    background: #fff; padding: 20px; border-radius: 8px;
+    box-shadow: 0 10px 50px rgba(0,0,0,.5);
+    user-select: none;
+  }
+  .fs-img.no-transition { transition: none; }
+  .fs-img svg { display: block; max-width: 100%; height: auto; }
+  .fs-hint {
+    text-align: center; padding: 6px; font-size: 11px;
+    color: rgba(255,255,255,.5); background: rgba(0,0,0,.3);
+  }
+  /* 背景色选择 */
+  .swatches { display: inline-flex; gap: 6px; align-items: center; }
+  .swatch {
+    width: 22px; height: 22px; border-radius: 5px; cursor: pointer;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+    transition: transform .12s, box-shadow .12s;
+    background-clip: padding-box;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { box-shadow: 0 0 0 2px var(--accent); border-color: var(--accent); }
+  .bg-label { font-size: 12px; color: var(--text-muted); }
+  .pane-header-right { display: flex; align-items: center; gap: 8px; }
+  /* 分隔线 */
+  .divider { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+  /* 移动端 */
+  @media (max-width: 760px) {
+    main { flex-direction: column; }
+    .pane.left { max-width: none; border-right: none; border-bottom: 1px solid var(--border); min-height: 40%; }
+    header { gap: 8px; }
+    .logo { font-size: 13px; }
+  }
+</style>
+</head>
+<body data-theme-host>
+  <header>
+    <div class="logo">📊 图表转图片 <span class="dot">·</span> HD</div>
+
+    <div class="tabs" id="formatTabs">
+      <button class="tab active" data-fmt="mermaid">Mermaid</button>
+      <button class="tab" data-fmt="graphviz">Graphviz</button>
+      <button class="tab" data-fmt="plantuml">PlantUML</button>
+    </div>
+
+    <div class="spacer"></div>
+
+    <div class="ctrl-group">
+      <div class="zoom-bar">
+        <button class="btn icon-only" id="zoomOut" title="缩小">−</button>
+        <span class="zoom-val" id="zoomVal">100%</span>
+        <button class="btn icon-only" id="zoomIn" title="放大">＋</button>
+        <button class="btn icon-only" id="zoomFit" title="适合宽度">⤢</button>
+      </div>
+      <div class="divider"></div>
+
+      <select class="btn" id="scaleSel" title="导出清晰度">
+        <option value="2">2× 高清</option>
+        <option value="3">3× 超清</option>
+        <option value="4">4× 极清</option>
+        <option value="1">1× 原始</option>
+      </select>
+      <button class="btn primary" id="exportPng">⬇ PNG</button>
+      <button class="btn" id="exportSvg">⬇ SVG</button>
+      <button class="btn icon-only" id="themeToggle" title="切换主题">🌙</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="pane left">
+      <div class="pane-header">
+        <span class="title" id="srcTitle">源代码</span>
+        <div class="actions">
+          <button class="link-btn" id="uploadBtn">📁 上传文件</button>
+          <button class="link-btn" id="loadExample">载入示例</button>
+          <button class="link-btn" id="clearCode">清空</button>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept=".mmd,.mermaid,.puml,.pu,.plantuml,.dot,.gv,.graphviz,.txt,.text,.md" style="display:none">
+      <textarea id="code" spellcheck="false" placeholder="在此粘贴 / 编写图表代码，或拖入 / 上传 .mmd .puml .dot 文件..."></textarea>
+    </section>
+
+    <section class="pane right">
+      <div class="pane-header">
+        <span class="title">预览</span>
+        <div class="pane-header-right">
+          <span class="bg-label">背景</span>
+          <div class="swatches" id="bgSwatches">
+            <span class="swatch active" data-bg="transparent" title="透明" style="background-image:linear-gradient(45deg,#bbb 25%,transparent 25%),linear-gradient(-45deg,#bbb 25%,transparent 25%);background-size:8px 8px;background-position:0 0,0 4px;"></span>
+            <span class="swatch" data-bg="#ffffff" title="白色" style="background:#ffffff"></span>
+            <span class="swatch" data-bg="#f6f7f9" title="浅灰" style="background:#f6f7f9"></span>
+            <span class="swatch" data-bg="#0d1117" title="深色" style="background:#0d1117"></span>
+          </div>
+          <span class="divider"></span>
+          <span id="sizeInfo" style="font-size:11px"></span>
+          <button class="btn-mini" id="fullscreenBtn" title="全屏预览（也可双击预览图）">⛶ 全屏</button>
+        </div>
+      </div>
+      <div class="preview-wrap" id="previewWrap">
+        <div id="preview"><div class="empty-hint">在左侧输入代码，自动渲染预览</div></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <span class="status-dot" id="statusDot"></span>
+    <span class="status-msg" id="statusMsg">就绪</span>
+    <span id="fmtHint"></span>
+  </footer>
+
+  <div id="toast"></div>
+
+  <!-- 全屏预览 -->
+  <div id="fullscreenOverlay" class="fs-overlay" hidden>
+    <div class="fs-toolbar">
+      <div class="fs-info" id="fsInfo">100%</div>
+      <div class="fs-actions">
+        <button class="fs-btn" id="fsZoomOut" title="缩小">−</button>
+        <button class="fs-btn" id="fsZoomReset" title="重置为 100%">1:1</button>
+        <button class="fs-btn" id="fsZoomIn" title="放大">＋</button>
+        <button class="fs-btn" id="fsFit" title="适合屏幕">适合</button>
+        <span class="fs-sep"></span>
+        <button class="fs-btn" id="fsDownload" title="下载高清 PNG">⬇ PNG</button>
+        <button class="fs-btn fs-close" id="fsClose" title="关闭 (Esc)">✕ 退出全屏</button>
+      </div>
+    </div>
+    <div class="fs-stage" id="fsStage">
+      <div class="fs-img" id="fsImg"></div>
+    </div>
+    <div class="fs-hint">滚轮缩放 · 拖拽平移 · 双击重置 · 点击空白或按 Esc 退出</div>
+  </div>
+
+<script>
+/* ============================================================
+   图表转高清图片工具
+   支持：Mermaid / Graphviz DOT / PlantUML
+   全部纯前端渲染（PlantUML 走公共服务器）
+   ============================================================ */
+
+const $ = (id) => document.getElementById(id);
+const codeEl = $('code');
+const previewEl = $('preview');
+const statusDot = $('statusDot');
+const statusMsg = $('statusMsg');
+const fmtHint = $('fmtHint');
+
+let currentFmt = 'mermaid';
+let zoom = 1;
+let exportBg = 'transparent';
+let renderToken = 0;     // 防抖/取消竞态
+let lastSvgEl = null;    // 最近一次渲染得到的 <svg> 元素
+let lastSvgText = null;  // 最近一次渲染得到的 SVG 字符串（用于 SVG 导出）
+
+/* ---------- 状态 ---------- */
+function setStatus(state, msg) {
+  statusDot.className = 'status-dot ' + (state || '');
+  statusMsg.className = 'status-msg' + (state === 'err' ? ' err' : '');
+  statusMsg.textContent = msg;
+}
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._tm);
+  t._tm = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+/* ---------- 示例代码 ---------- */
+const EXAMPLES = {
+  mermaid: `flowchart TD
+    A([开始]) --> B{是否已登录?}
+    B -->|是| C[加载用户信息]
+    B -->|否| D[跳转登录页]
+    D --> E[输入账号密码]
+    E --> F{校验通过?}
+    F -->|否| E
+    F -->|是| C
+    C --> G[渲染首页]
+    G --> H([结束])`,
+  graphviz: `digraph G {
+    rankdir=LR;
+    node [fontname="Microsoft YaHei", shape=box, style=rounded, color="#2f6df6", fontcolor="#1f2329"];
+    edge [fontname="Microsoft YaHei", color="#555"];
+
+    开始 [shape=oval, color="#30a46c"];
+    结束 [shape=oval, color="#e5484d"];
+
+    开始 -> 处理请求;
+    处理请求 -> 校验 [label="  解析"];
+    校验 -> 处理 [label="  通过"];
+    校验 -> 结束 [label="  失败"];
+    处理 -> 返回结果;
+    返回结果 -> 结束;
+}`,
+  plantuml: `@startuml
+skinparam backgroundColor #FFFFFF
+skinparam sequenceMessageAlign center
+
+actor 用户 as U
+participant "前端 App" as F
+participant "后端服务" as B
+database "数据库" as DB
+
+U -> F : 发起请求
+activate F
+F -> B : API 调用
+activate B
+B -> DB : 查询数据
+DB --> B : 返回结果
+B --> F : 响应 JSON
+deactivate B
+F --> U : 渲染页面
+deactivate F
+@enduml`,
+};
+
+const HINTS = {
+  mermaid: 'Mermaid：流程图、时序图、类图、甘特图等，本地渲染',
+  graphviz: 'Graphviz DOT：本地 viz.js 渲染',
+  plantuml: 'PlantUML：代码经公共服务器(plantuml.com)渲染，需联网',
+};
+
+/* ---------- 初始化 Mermaid ---------- */
+let mermaidReady = false;
+async function ensureMermaid(theme) {
+  if (!window.mermaid) return false;
+  if (!mermaidReady) {
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: theme === 'dark' ? 'dark' : 'default',
+      securityLevel: 'loose',
+      fontFamily: '"Microsoft YaHei", "PingFang SC", sans-serif',
+    });
+    mermaidReady = true;
+  } else {
+    mermaid.initialize({ startOnLoad: false, theme: theme === 'dark' ? 'dark' : 'default' });
+  }
+  return true;
+}
+
+/* ---------- 渲染：Mermaid ---------- */
+async function renderMermaid(code, theme) {
+  if (!(await ensureMermaid(theme))) throw new Error('Mermaid 库未加载，请检查网络');
+  const id = 'mmd_' + Date.now() + '_' + Math.floor(Math.random() * 1e6);
+  // 校验语法（render 本身会抛错）
+  const { svg } = await mermaid.render(id, code);
+  return svg; // 返回 svg 字符串
+}
+
+/* ---------- 渲染：Graphviz ---------- */
+let vizInstance = null;
+async function renderGraphviz(code) {
+  if (!window.Viz) throw new Error('viz.js 库未加载，请检查网络');
+  if (!vizInstance) vizInstance = new Viz();
+  // viz.js 2.x 的 renderSVGElement 返回 Promise（内部走 worker/wasm）
+  const el = await vizInstance.renderSVGElement(code);
+  if (!el || !el.outerHTML) throw new Error('Graphviz 渲染失败：返回为空');
+  return el.outerHTML;
+}
+
+/* ---------- 渲染：PlantUML（公共服务器） ---------- */
+async function renderPlantUML(code) {
+  if (!window.plantumlEncoder) throw new Error('plantuml-encoder 库未加载，请检查网络');
+  const encoded = plantumlEncoder.encode(code);
+  // 用 SVG 格式，便于高清导出
+  const url = 'https://www.plantuml.com/plantuml/svg/' + encoded;
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('PlantUML 服务器返回 ' + resp.status);
+  let svg = await resp.text();
+  // 服务器错误时 PlantUML 也会返回 svg，里面含 error 文本
+  if (/syntax error|Cannot|Error/i.test(svg) && /<text/.test(svg) === false) {
+    throw new Error('PlantUML 语法错误');
+  }
+  return svg;
+}
+
+/* ---------- 主渲染流程 ---------- */
+let debounceTimer = null;
+function scheduleRender(delay = 350) {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(render, delay);
+}
+
+async function render() {
+  const token = ++renderToken;
+  const code = codeEl.value.trim();
+  if (!code) {
+    previewEl.innerHTML = '<div class="empty-hint">在左侧输入代码，自动渲染预览</div>';
+    lastSvgEl = null;
+    lastSvgText = null;
+    setStatus('', '就绪');
+    updateSizeInfo();
+    return;
+  }
+
+  setStatus('busy', '渲染中…');
+  try {
+    const theme = document.documentElement.getAttribute('data-theme');
+    let svgText;
+    if (currentFmt === 'mermaid') {
+      svgText = await renderMermaid(code, theme);
+    } else if (currentFmt === 'graphviz') {
+      svgText = await renderGraphviz(code);
+    } else {
+      svgText = await renderPlantUML(code);
+    }
+    if (token !== renderToken) return; // 已被新一次渲染取代
+
+    lastSvgText = svgText;
+    previewEl.innerHTML = svgText;
+    lastSvgEl = previewEl.querySelector('svg');
+    // 给 svg 加一个统一最大宽度约束，方便预览
+    if (lastSvgEl) {
+      lastSvgEl.style.maxWidth = '100%';
+      lastSvgEl.style.height = 'auto';
+    }
+    applyZoom();
+    setStatus('ok', '渲染成功');
+    updateSizeInfo();
+  } catch (e) {
+    if (token !== renderToken) return;
+    lastSvgEl = null;
+    lastSvgText = null;
+    previewEl.innerHTML = `<div class="empty-hint" style="color:var(--danger)">${escapeHtml(e.message || String(e))}</div>`;
+    setStatus('err', '渲染失败：' + (e.message || e));
+    updateSizeInfo();
+  }
+}
+
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* ---------- 尺寸信息 ---------- */
+function updateSizeInfo() {
+  const info = $('sizeInfo');
+  if (!lastSvgEl) { info.textContent = ''; return; }
+  const w = getSvgSize(lastSvgEl).w;
+  const h = getSvgSize(lastSvgEl).h;
+  info.textContent = (w && h) ? `${Math.round(w)} × ${Math.round(h)} px` : '';
+}
+
+function getSvgSize(svg) {
+  let w = null, h = null;
+  // 优先用 viewBox（最可靠，能避免 "100%" / "auto" 这类相对值）
+  const vb = svg.getAttribute('viewBox');
+  if (vb) {
+    const p = vb.split(/[\s,]+/).map(Number);
+    if (p.length === 4 && p[2] > 0 && p[3] > 0) { w = p[2]; h = p[3]; }
+  }
+  // 其次用绝对数值的 width/height 属性（忽略百分比 / auto）
+  const aw = svg.getAttribute('width');
+  const ah = svg.getAttribute('height');
+  if (aw && !/[^\d.]/.test(aw.trim())) w = parseFloat(aw);
+  if (ah && !/[^\d.]/.test(ah.trim())) h = parseFloat(ah);
+  // 兜底：getBoundingClientRect
+  if (!w || !h) {
+    const r = svg.getBoundingClientRect();
+    w = w || r.width;
+    h = h || r.height;
+  }
+  return { w: w || 0, h: h || 0 };
+}
+
+/* ---------- 缩放 ---------- */
+function applyZoom() {
+  if (lastSvgEl) lastSvgEl.style.transform = `scale(${zoom})`;
+  $('zoomVal').textContent = Math.round(zoom * 100) + '%';
+}
+$('zoomIn').onclick = () => { zoom = Math.min(4, +(zoom + 0.1).toFixed(2)); applyZoom(); };
+$('zoomOut').onclick = () => { zoom = Math.max(0.2, +(zoom - 0.1).toFixed(2)); applyZoom(); };
+$('zoomFit').onclick = () => {
+  zoom = 1; applyZoom();
+  if (lastSvgEl) {
+    const wrap = $('previewWrap');
+    const sw = getSvgSize(lastSvgEl).w;
+    if (sw > wrap.clientWidth - 60) {
+      zoom = +(Math.max(0.2, (wrap.clientWidth - 60) / sw)).toFixed(2);
+      applyZoom();
+    }
+  }
+};
+
+/* ---------- 格式切换 ---------- */
+function setFormat(fmt) {
+  currentFmt = fmt;
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmt));
+  fmtHint.textContent = HINTS[fmt];
+  // 切换时不覆盖用户已有内容（除非为空或为其它格式示例）
+  if (codeEl.value.trim() === '' || Object.values(EXAMPLES).includes(codeEl.value.trim())) {
+    codeEl.value = EXAMPLES[fmt];
+  }
+  scheduleRender(50);
+}
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => setFormat(t.dataset.fmt);
+});
+
+/* ---------- 示例 / 清空 ---------- */
+$('loadExample').onclick = () => { codeEl.value = EXAMPLES[currentFmt]; scheduleRender(50); codeEl.focus(); };
+$('clearCode').onclick = () => { codeEl.value = ''; scheduleRender(50); };
+
+/* ---------- 文件上传 / 拖拽 ---------- */
+const fileInput = $('fileInput');
+$('uploadBtn').onclick = () => fileInput.click();
+fileInput.onchange = () => {
+  if (fileInput.files.length) loadFile(fileInput.files[0]);
+  fileInput.value = '';
+};
+
+function detectFormat(filename, content) {
+  const ext = (filename.split('.').pop() || '').toLowerCase();
+  if (['puml', 'pu', 'plantuml', 'iuml'].includes(ext)) return 'plantuml';
+  if (['dot', 'gv', 'graphviz'].includes(ext)) return 'graphviz';
+  if (['mmd', 'mermaid'].includes(ext)) return 'mermaid';
+  // 内容兜底识别
+  const c = content.trim();
+  if (c.startsWith('@startuml') || c.includes('\n@startuml')) return 'plantuml';
+  if (/^(strict\s+)?(digraph|graph)\b/m.test(c)) return 'graphviz';
+  return 'mermaid';
+}
+
+async function loadFile(file) {
+  try {
+    const text = await file.text();
+    const fmt = detectFormat(file.name, text);
+    currentFmt = fmt;
+    document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.fmt === fmt));
+    fmtHint.textContent = HINTS[fmt];
+    codeEl.value = text;
+    render();
+    toast('已载入 ' + file.name + ' · 识别为 ' + fmt.toUpperCase());
+  } catch (e) {
+    toast('读取文件失败：' + e.message);
+  }
+}
+
+// 拖拽支持：拖文件到编辑器
+['dragenter', 'dragover'].forEach(ev => {
+  codeEl.addEventListener(ev, e => { e.preventDefault(); codeEl.style.boxShadow = 'inset 0 0 0 2px var(--accent)'; });
+});
+['dragleave', 'drop'].forEach(ev => {
+  codeEl.addEventListener(ev, e => { e.preventDefault(); codeEl.style.boxShadow = ''; });
+});
+codeEl.addEventListener('drop', e => {
+  if (e.dataTransfer && e.dataTransfer.files.length) loadFile(e.dataTransfer.files[0]);
+});
+
+/* ---------- 背景色 ---------- */
+$('bgSwatches').querySelectorAll('.swatch').forEach(s => {
+  s.onclick = () => {
+    $('bgSwatches').querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+    s.classList.add('active');
+    exportBg = s.dataset.bg;
+  };
+});
+
+/* ---------- 主题 ---------- */
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  $('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
+  mermaidReady = false; // 重新初始化以应用主题
+  if (currentFmt === 'mermaid') scheduleRender(50);
+}
+$('themeToggle').onclick = () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  setTheme(cur === 'dark' ? 'light' : 'dark');
+};
+
+/* ---------- 输入处理 ---------- */
+codeEl.addEventListener('input', () => scheduleRender(400));
+codeEl.addEventListener('keydown', (e) => {
+  // Ctrl/Cmd + Enter 立即渲染
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); render(); }
+});
+
+/* ============================================================
+   导出逻辑
+   ============================================================ */
+
+/* 把 unicode 字符串安全转 base64（解决 btoa 中文报错） */
+function svgToDataUri(svgText) {
+  const b64 = btoa(unescape(encodeURIComponent(svgText)));
+  return 'data:image/svg+xml;base64,' + b64;
+}
+
+/* 给要导出的 SVG 准备一份“干净”副本：去掉预览用的 transform/ maxWidth */
+function prepareSvgForExport(svgEl, scale) {
+  const clone = svgEl.cloneNode(true);
+  // 移除预览缩放
+  clone.removeAttribute('style');
+  const { w, h } = getSvgSize(svgEl);
+  clone.setAttribute('width', String(Math.round(w * scale)));
+  clone.setAttribute('height', String(Math.round(h * scale)));
+  if (!clone.getAttribute('viewBox')) {
+    clone.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  }
+  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  clone.setAttribute('xmlns:xlink', 'http://www.w3.org/1999/xlink');
+  return { clone, w: w * scale, h: h * scale };
+}
+
+/* SVG 字符串导出 */
+function downloadSvg() {
+  if (!lastSvgEl) { toast('没有可导出的图表'); return; }
+  const { clone } = prepareSvgForExport(lastSvgEl, 1);
+  const xml = '<?xml version="1.0" encoding="UTF-8"?>\n' +
+              new XMLSerializer().serializeToString(clone);
+  const blob = new Blob([xml], { type: 'image/svg+xml;charset=utf-8' });
+  triggerDownload(blob, 'diagram.svg');
+  toast('已下载 SVG');
+}
+
+/* SVG -> 高清 PNG */
+function downloadPng() {
+  if (!lastSvgEl) { toast('没有可导出的图表'); return; }
+  const scale = parseInt($('scaleSel').value, 10) || 2;
+  setStatus('busy', `正在生成 ${scale}× PNG…`);
+
+  // PlantUML 文本节点是 <text>，没问题；Mermaid 早期版本可能用 foreignObject
+  const { clone, w, h } = prepareSvgForExport(lastSvgEl, scale);
+  const svgText = new XMLSerializer().serializeToString(clone);
+  const uri = svgToDataUri(svgText);
+
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.ceil(w);
+    canvas.height = Math.ceil(h);
+    const ctx = canvas.getContext('2d');
+    // 背景填充
+    if (exportBg !== 'transparent') {
+      ctx.fillStyle = exportBg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob((blob) => {
+      triggerDownload(blob, `diagram_${scale}x.png`);
+      setStatus('ok', `已导出 ${scale}× PNG`);
+      toast(`已下载 ${scale}× 高清 PNG`);
+    }, 'image/png');
+  };
+  img.onerror = () => {
+    setStatus('err', 'PNG 导出失败：SVG 中可能含浏览器无法离屏渲染的外部资源');
+    toast('导出失败，请改用 SVG 导出');
+  };
+  img.src = uri;
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+$('exportPng').onclick = downloadPng;
+$('exportSvg').onclick = downloadSvg;
+
+/* ============================================================
+   全屏预览
+   ============================================================ */
+const fsOverlay = $('fullscreenOverlay');
+const fsStage = $('fsStage');
+const fsImg = $('fsImg');
+const fsInfo = $('fsInfo');
+let fsZoom = 1, fsPanX = 0, fsPanY = 0;
+
+function openFullscreen() {
+  if (!lastSvgText) { toast('没有可预览的图表，请先渲染'); return; }
+  fsImg.innerHTML = lastSvgText;
+  const svg = fsImg.querySelector('svg');
+  if (svg) { svg.style.maxWidth = '100%'; svg.style.height = 'auto'; svg.style.display = 'block'; }
+  fsImg.style.background = (exportBg === 'transparent') ? '#ffffff' : exportBg;
+  fsZoom = 1; fsPanX = 0; fsPanY = 0;
+  applyFsTransform();
+  fsOverlay.hidden = false;
+}
+function closeFullscreen() { fsOverlay.hidden = true; }
+function applyFsTransform() {
+  fsImg.style.transform = 'translate(' + fsPanX + 'px,' + fsPanY + 'px) scale(' + fsZoom + ')';
+  fsInfo.textContent = Math.round(fsZoom * 100) + '%';
+}
+function fsZoomBy(delta) {
+  fsZoom = Math.min(8, Math.max(0.2, +(fsZoom + delta).toFixed(2)));
+  applyFsTransform();
+}
+$('fullscreenBtn').onclick = openFullscreen;
+$('fsClose').onclick = closeFullscreen;
+$('fsZoomIn').onclick = () => fsZoomBy(0.2);
+$('fsZoomOut').onclick = () => fsZoomBy(-0.2);
+$('fsZoomReset').onclick = () => { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); };
+$('fsFit').onclick = $('fsZoomReset').onclick;
+$('fsDownload').onclick = downloadPng;
+
+// 滚轮缩放
+fsStage.addEventListener('wheel', e => {
+  e.preventDefault();
+  fsZoomBy(e.deltaY < 0 ? 0.12 : -0.12);
+}, { passive: false });
+
+// 拖拽平移
+let fsDragging = false, fsSX = 0, fsSY = 0, fsSPX = 0, fsSPY = 0, fsMoved = false;
+fsStage.addEventListener('mousedown', e => {
+  fsDragging = true; fsMoved = false;
+  fsSX = e.clientX; fsSY = e.clientY;
+  fsSPX = fsPanX; fsSPY = fsPanY;
+  fsStage.classList.add('dragging');
+  fsImg.classList.add('no-transition');
+});
+window.addEventListener('mousemove', e => {
+  if (!fsDragging) return;
+  fsPanX = fsSPX + (e.clientX - fsSX);
+  fsPanY = fsSPY + (e.clientY - fsSY);
+  if (Math.abs(e.clientX - fsSX) > 3 || Math.abs(e.clientY - fsSY) > 3) fsMoved = true;
+  applyFsTransform();
+});
+window.addEventListener('mouseup', () => {
+  if (!fsDragging) return;
+  fsDragging = false;
+  fsStage.classList.remove('dragging');
+  fsImg.classList.remove('no-transition');
+});
+// 点击空白处（未拖动）关闭
+fsStage.addEventListener('click', e => {
+  if (!fsMoved && e.target === fsStage) closeFullscreen();
+});
+// 双击图重置缩放
+fsImg.addEventListener('dblclick', () => { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); });
+// Esc 退出
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !fsOverlay.hidden) closeFullscreen();
+});
+// 双击预览区图进入全屏
+previewEl.addEventListener('dblclick', openFullscreen);
+
+/* ---------- 启动 ---------- */
+// 跟随系统主题初始化
+const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+setTheme(prefersDark ? 'dark' : 'light');
+setFormat('mermaid');
+render();
+</script>
+</body>
+</html>

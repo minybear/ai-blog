@@ -1,0 +1,1183 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF转图片工具 V2</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #fff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #2c3e50;
+        }
+
+        .version-badge {
+            display: inline-block;
+            background-color: #e74c3c;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        h3 {
+            margin-bottom: 15px;
+            color: #2c3e50;
+        }
+
+        .upload-area {
+            margin-bottom: 30px;
+        }
+
+        #drop-area {
+            border: 3px dashed #ccc;
+            border-radius: 10px;
+            padding: 50px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #drop-area:hover, #drop-area.highlight {
+            border-color: #3498db;
+            background-color: #f0f8ff;
+        }
+
+        #drop-area p {
+            margin-bottom: 15px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .file-input-label {
+            display: inline-block;
+            padding: 12px 24px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .file-input-label:hover {
+            background-color: #2980b9;
+        }
+
+        .options {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+        }
+
+        .option-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .option-group label {
+            width: 100px;
+            font-weight: 500;
+        }
+
+        select, input[type="range"] {
+            padding: 8px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            flex: 1;
+        }
+
+        #quality-value {
+            margin-left: 10px;
+            font-weight: bold;
+            width: 20px;
+            text-align: center;
+        }
+
+        .primary-btn, .secondary-btn, .success-btn, .warning-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-right: 10px;
+        }
+
+        .primary-btn {
+            background-color: #3498db;
+            color: white;
+        }
+
+        .primary-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .secondary-btn {
+            background-color: #95a5a6;
+            color: white;
+        }
+
+        .secondary-btn:hover {
+            background-color: #7f8c8d;
+        }
+
+        .success-btn {
+            background-color: #27ae60;
+            color: white;
+        }
+
+        .success-btn:hover {
+            background-color: #229954;
+        }
+
+        .warning-btn {
+            background-color: #f39c12;
+            color: white;
+        }
+
+        .warning-btn:hover {
+            background-color: #e67e22;
+        }
+
+        .progress-bar {
+            height: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+
+        #progress-bar-inner {
+            height: 100%;
+            background-color: #3498db;
+            width: 0;
+            transition: width 0.3s ease;
+        }
+
+        #progress-text {
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        #result-container {
+            margin-top: 30px;
+        }
+
+        .result-actions {
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .selection-info {
+            background-color: #e8f4fd;
+            padding: 10px 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            border-left: 4px solid #3498db;
+        }
+
+        #preview-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .preview-item {
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .preview-item:hover {
+            border-color: #3498db;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+
+        .preview-item.selected {
+            border-color: #27ae60;
+            background-color: #f0fff4;
+        }
+
+        .preview-item img {
+            width: 100%;
+            display: block;
+        }
+
+        .preview-item .page-number {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .preview-item .selection-checkbox {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+            z-index: 10;
+            transform: scale(1.5);
+            accent-color: #27ae60;
+        }
+
+        .preview-item .download-btn {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .preview-item .download-btn:hover {
+            background-color: #2980b9;
+        }
+
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #27ae60;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            z-index: 1000;
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .toast.error {
+            background-color: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+            }
+            
+            .result-actions {
+                flex-direction: column;
+            }
+            
+            .primary-btn, .secondary-btn, .success-btn, .warning-btn {
+                margin-bottom: 10px;
+                margin-right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>PDF转图片工具 <span class="version-badge">V2</span></h1>
+        <div class="upload-area">
+            <div id="drop-area">
+                <p>拖放PDF文件到这里或</p>
+                <input type="file" id="file-input" accept=".pdf" />
+                <label for="file-input" class="file-input-label">选择PDF文件</label>
+            </div>
+        </div>
+        
+        <div class="options" id="options-panel" style="display: none;">
+            <h3>转换选项</h3>
+            <div class="option-group">
+                <label for="format-select">图片格式:</label>
+                <select id="format-select">
+                    <option value="png" selected>PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                </select>
+            </div>
+            <div class="option-group">
+                <label for="quality-input">图片质量:</label>
+                <input type="range" id="quality-input" min="1" max="10" value="8">
+                <span id="quality-value">8</span>
+            </div>
+            <button id="convert-btn" class="primary-btn">开始转换</button>
+        </div>
+
+        <div id="progress-container" style="display: none;">
+            <div class="progress-bar">
+                <div id="progress-bar-inner"></div>
+            </div>
+            <div id="progress-text">处理中: 0%</div>
+        </div>
+
+        <div id="result-container" style="display: none;">
+            <h3>转换结果</h3>
+            <div class="selection-info" id="selection-info">
+                已选择 <span id="selected-count">0</span> 张图片
+            </div>
+            <div class="result-actions">
+                <button id="select-all-btn" class="secondary-btn">全选</button>
+                <button id="select-none-btn" class="secondary-btn">取消全选</button>
+                <button id="copy-selected-btn" class="success-btn">复制选中到剪切板</button>
+                <button id="copy-as-files-btn" class="success-btn">复制为文件</button>
+                <button id="copy-as-canvas-btn" class="success-btn">复制为拼接图片</button>
+                <button id="download-selected-btn" class="warning-btn">下载选中图片</button>
+                <button id="download-all-btn" class="secondary-btn">下载所有图片(ZIP)</button>
+                <button id="clear-btn" class="secondary-btn">清除结果</button>
+            </div>
+            <div id="preview-container"></div>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 引入必要的库 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script>
+        // 设置pdf.js的worker路径
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取DOM元素
+            const dropArea = document.getElementById('drop-area');
+            const fileInput = document.getElementById('file-input');
+            const optionsPanel = document.getElementById('options-panel');
+            const convertBtn = document.getElementById('convert-btn');
+            const progressContainer = document.getElementById('progress-container');
+            const progressBarInner = document.getElementById('progress-bar-inner');
+            const progressText = document.getElementById('progress-text');
+            const resultContainer = document.getElementById('result-container');
+            const previewContainer = document.getElementById('preview-container');
+            const downloadAllBtn = document.getElementById('download-all-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            const formatSelect = document.getElementById('format-select');
+            const qualityInput = document.getElementById('quality-input');
+            const qualityValue = document.getElementById('quality-value');
+            
+            // V2 新增元素
+            const selectAllBtn = document.getElementById('select-all-btn');
+            const selectNoneBtn = document.getElementById('select-none-btn');
+            const copySelectedBtn = document.getElementById('copy-selected-btn');
+            const copyAsFilesBtn = document.getElementById('copy-as-files-btn');
+            const copyAsCanvasBtn = document.getElementById('copy-as-canvas-btn');
+            const downloadSelectedBtn = document.getElementById('download-selected-btn');
+            const selectedCountSpan = document.getElementById('selected-count');
+            const toast = document.getElementById('toast');
+
+            // 存储PDF文件和转换后的图片
+            let pdfFile = null;
+            let convertedImages = [];
+            let selectedImages = new Set();
+
+            // 拖放功能
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, preventDefaults, false);
+            });
+
+            function preventDefaults(e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+
+            ['dragenter', 'dragover'].forEach(eventName => {
+                dropArea.addEventListener(eventName, highlight, false);
+            });
+
+            ['dragleave', 'drop'].forEach(eventName => {
+                dropArea.addEventListener(eventName, unhighlight, false);
+            });
+
+            function highlight() {
+                dropArea.classList.add('highlight');
+            }
+
+            function unhighlight() {
+                dropArea.classList.remove('highlight');
+            }
+
+            // 处理文件拖放
+            dropArea.addEventListener('drop', handleDrop, false);
+
+            function handleDrop(e) {
+                const dt = e.dataTransfer;
+                const files = dt.files;
+                handleFiles(files);
+            }
+
+            // 处理文件选择
+            fileInput.addEventListener('change', function(e) {
+                console.log('文件选择事件触发', e.target.files);
+                handleFiles(e.target.files);
+            });
+
+            // 处理选择的文件
+            function handleFiles(files) {
+                console.log('handleFiles 被调用', files);
+                
+                if (!files || files.length === 0) {
+                    console.log('没有选择文件');
+                    return;
+                }
+                
+                const file = files[0];
+                console.log('选择的文件:', file.name, file.type, file.size);
+                
+                if (file.type === 'application/pdf') {
+                    pdfFile = file;
+                    optionsPanel.style.display = 'block';
+                    
+                    // 更新显示内容
+                    dropArea.innerHTML = `<div style="text-align: center; padding: 20px;">
+                                            <p style="color: #27ae60; margin-bottom: 10px;">✓ 已选择: ${file.name}</p>
+                                            <p style="color: #666; margin-bottom: 15px;">文件大小: ${(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                            <input type="file" id="file-input-new" accept=".pdf" style="display: none;" />
+                                            <label for="file-input-new" class="file-input-label">更换文件</label>
+                                         </div>`;
+                    
+                    // 重新绑定文件输入事件
+                    const newFileInput = document.getElementById('file-input-new');
+                    if (newFileInput) {
+                        newFileInput.addEventListener('change', function(e) {
+                            console.log('新文件输入事件触发');
+                            handleFiles(e.target.files);
+                        });
+                    }
+                    
+                    showToast(`已选择文件: ${file.name}`);
+                    console.log('文件处理完成，显示选项面板');
+                } else {
+                    console.log('文件类型不正确:', file.type);
+                    showToast('请选择PDF文件', 'error');
+                }
+            }
+
+            // 更新质量值显示
+            qualityInput.addEventListener('input', function() {
+                qualityValue.textContent = this.value;
+            });
+
+            // 转换按钮点击事件
+            convertBtn.addEventListener('click', convertPdfToImages);
+
+            // PDF转图片的主要功能
+            async function convertPdfToImages() {
+                if (!pdfFile) {
+                    showToast('请先选择PDF文件', 'error');
+                    return;
+                }
+
+                // 显示进度条
+                optionsPanel.style.display = 'none';
+                progressContainer.style.display = 'block';
+                resultContainer.style.display = 'none';
+                previewContainer.innerHTML = '';
+                convertedImages = [];
+                selectedImages.clear();
+
+                try {
+                    // 读取PDF文件
+                    const arrayBuffer = await readFileAsArrayBuffer(pdfFile);
+                    const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+                    const totalPages = pdf.numPages;
+                    
+                    // 设置画布
+                    const format = formatSelect.value;
+                    const quality = parseInt(qualityInput.value) / 10;
+                    
+                    // 处理每一页
+                    for (let i = 1; i <= totalPages; i++) {
+                        // 更新进度
+                        const progress = Math.round((i - 1) / totalPages * 100);
+                        updateProgress(progress, `处理中: ${i-1}/${totalPages} 页`);
+                        
+                        // 获取页面
+                        const page = await pdf.getPage(i);
+                        
+                        // 计算尺寸
+                        const viewport = page.getViewport({ scale: 1.5 });
+                        
+                        // 创建画布
+                        const canvas = document.createElement('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        
+                        // 渲染PDF页面到画布
+                        await page.render({
+                            canvasContext: context,
+                            viewport: viewport
+                        }).promise;
+                        
+                        // 转换为图片
+                        let imageData;
+                        if (format === 'png') {
+                            imageData = canvas.toDataURL('image/png');
+                        } else if (format === 'jpeg') {
+                            imageData = canvas.toDataURL('image/jpeg', quality);
+                        } else if (format === 'webp') {
+                            imageData = canvas.toDataURL('image/webp', quality);
+                        }
+                        
+                        // 存储转换后的图片
+                        convertedImages.push({
+                            pageNum: i,
+                            data: imageData,
+                            format: format
+                        });
+                        
+                        // 更新进度
+                        updateProgress(Math.round(i / totalPages * 100), `处理中: ${i}/${totalPages} 页`);
+                    }
+                    
+                    // 显示结果
+                    displayResults();
+                    showToast(`成功转换 ${totalPages} 页PDF为图片`);
+                    
+                } catch (error) {
+                    console.error('转换过程中出错:', error);
+                    showToast('转换过程中出错: ' + error.message, 'error');
+                    progressContainer.style.display = 'none';
+                    optionsPanel.style.display = 'block';
+                }
+            }
+
+            // 更新进度条
+            function updateProgress(percent, text) {
+                progressBarInner.style.width = percent + '%';
+                progressText.textContent = text;
+            }
+
+            // 显示转换结果
+            function displayResults() {
+                progressContainer.style.display = 'none';
+                resultContainer.style.display = 'block';
+                
+                convertedImages.forEach((image, index) => {
+                    const previewItem = document.createElement('div');
+                    previewItem.className = 'preview-item';
+                    previewItem.dataset.index = index;
+                    
+                    const img = document.createElement('img');
+                    img.src = image.data;
+                    
+                    const pageNumber = document.createElement('div');
+                    pageNumber.className = 'page-number';
+                    pageNumber.textContent = `第 ${image.pageNum} 页`;
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = 'selection-checkbox';
+                    checkbox.addEventListener('change', function(e) {
+                        e.stopPropagation();
+                        toggleImageSelection(index, this.checked);
+                    });
+                    
+                    const downloadBtn = document.createElement('button');
+                    downloadBtn.className = 'download-btn';
+                    downloadBtn.textContent = '下载';
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        downloadImage(image.data, `page-${image.pageNum}.${image.format}`);
+                    });
+                    
+                    // 点击预览项切换选择状态
+                    previewItem.addEventListener('click', function() {
+                        checkbox.checked = !checkbox.checked;
+                        toggleImageSelection(index, checkbox.checked);
+                    });
+                    
+                    previewItem.appendChild(img);
+                    previewItem.appendChild(pageNumber);
+                    previewItem.appendChild(checkbox);
+                    previewItem.appendChild(downloadBtn);
+                    previewContainer.appendChild(previewItem);
+                });
+                
+                updateSelectionInfo();
+            }
+
+            // 切换图片选择状态
+            function toggleImageSelection(index, selected) {
+                const previewItem = document.querySelector(`[data-index="${index}"]`);
+                if (selected) {
+                    selectedImages.add(index);
+                    previewItem.classList.add('selected');
+                } else {
+                    selectedImages.delete(index);
+                    previewItem.classList.remove('selected');
+                }
+                updateSelectionInfo();
+            }
+
+            // 更新选择信息
+            function updateSelectionInfo() {
+                selectedCountSpan.textContent = selectedImages.size;
+            }
+
+            // 全选功能
+            selectAllBtn.addEventListener('click', function() {
+                convertedImages.forEach((_, index) => {
+                    const checkbox = document.querySelector(`[data-index="${index}"] .selection-checkbox`);
+                    checkbox.checked = true;
+                    toggleImageSelection(index, true);
+                });
+            });
+
+            // 取消全选功能
+            selectNoneBtn.addEventListener('click', function() {
+                convertedImages.forEach((_, index) => {
+                    const checkbox = document.querySelector(`[data-index="${index}"] .selection-checkbox`);
+                    checkbox.checked = false;
+                    toggleImageSelection(index, false);
+                });
+            });
+
+            // 复制选中图片到剪切板
+            copySelectedBtn.addEventListener('click', async function() {
+                if (selectedImages.size === 0) {
+                    showToast('请先选择要复制的图片', 'error');
+                    return;
+                }
+
+                try {
+                    const selectedIndexes = Array.from(selectedImages).sort((a, b) => a - b);
+                    
+                    if (selectedIndexes.length === 1) {
+                        // 单张图片直接复制
+                        const index = selectedIndexes[0];
+                        const image = convertedImages[index];
+                        const response = await fetch(image.data);
+                        const blob = await response.blob();
+                        
+                        await navigator.clipboard.write([
+                            new ClipboardItem({
+                                [blob.type]: blob
+                            })
+                        ]);
+                        showToast(`已复制 1 张图片到剪切板`);
+                    } else {
+                        // 多张图片：使用 DataTransfer 方式模拟文件复制
+                        showToast('正在准备多张图片...', 'success');
+                        
+                        // 方法1：尝试使用多个 ClipboardItem
+                        const clipboardItems = [];
+                        const imageBlobs = [];
+                        
+                        for (const index of selectedIndexes) {
+                            const image = convertedImages[index];
+                            const response = await fetch(image.data);
+                            const blob = await response.blob();
+                            imageBlobs.push(blob);
+                        }
+                        
+                        // 创建包含所有图片的复合剪切板内容
+                        const clipboardData = {};
+                        
+                        // 添加HTML格式（包含所有图片）
+                        let htmlContent = '<!DOCTYPE html><html><body>';
+                        for (let i = 0; i < selectedIndexes.length; i++) {
+                            const index = selectedIndexes[i];
+                            const image = convertedImages[index];
+                            htmlContent += `<img src="${image.data}" alt="Page ${image.pageNum}" style="display: block; margin: 10px 0; max-width: 100%;">`;
+                        }
+                        htmlContent += '</body></html>';
+                        clipboardData['text/html'] = new Blob([htmlContent], { type: 'text/html' });
+                        
+                        // 添加纯文本格式
+                        clipboardData['text/plain'] = new Blob([`已复制 ${selectedImages.size} 张PDF图片（页面 ${selectedIndexes.map(i => convertedImages[i].pageNum).join(', ')}）`], { type: 'text/plain' });
+                        
+                        // 添加第一张图片作为主要图像内容
+                        if (imageBlobs.length > 0) {
+                            clipboardData[imageBlobs[0].type] = imageBlobs[0];
+                        }
+                        
+                        // 尝试创建文件列表格式（实验性）
+                        try {
+                            const files = [];
+                            for (let i = 0; i < imageBlobs.length; i++) {
+                                const index = selectedIndexes[i];
+                                const image = convertedImages[index];
+                                const fileName = `page-${image.pageNum}.${image.format}`;
+                                
+                                // 创建 File 对象
+                                const file = new File([imageBlobs[i]], fileName, {
+                                    type: imageBlobs[i].type,
+                                    lastModified: Date.now()
+                                });
+                                files.push(file);
+                            }
+                            
+                            // 尝试添加文件列表到剪切板
+                            if (files.length > 0) {
+                                clipboardData['Files'] = files;
+                            }
+                        } catch (fileError) {
+                            console.log('文件格式不支持:', fileError);
+                        }
+                        
+                        await navigator.clipboard.write([
+                            new ClipboardItem(clipboardData)
+                        ]);
+                        
+                        showToast(`已复制 ${selectedImages.size} 张图片到剪切板（支持粘贴到各种应用）`);
+                    }
+                    
+                } catch (error) {
+                    console.error('复制到剪切板失败:', error);
+                    
+                    // 降级方案：创建临时下载链接让用户手动复制
+                    try {
+                        showToast('正在使用备用方案...', 'success');
+                        
+                        // 创建一个临时的文件下载区域
+                        const tempDiv = document.createElement('div');
+                        tempDiv.style.position = 'fixed';
+                        tempDiv.style.top = '50%';
+                        tempDiv.style.left = '50%';
+                        tempDiv.style.transform = 'translate(-50%, -50%)';
+                        tempDiv.style.background = 'white';
+                        tempDiv.style.padding = '20px';
+                        tempDiv.style.border = '2px solid #3498db';
+                        tempDiv.style.borderRadius = '10px';
+                        tempDiv.style.boxShadow = '0 4px 20px rgba(0,0,0,0.3)';
+                        tempDiv.style.zIndex = '10000';
+                        tempDiv.style.maxWidth = '80%';
+                        tempDiv.style.maxHeight = '80%';
+                        tempDiv.style.overflow = 'auto';
+                        
+                        tempDiv.innerHTML = `
+                            <h3>多图片复制备用方案</h3>
+                            <p>由于浏览器限制，无法直接复制多张图片。请使用以下方式：</p>
+                            <div style="margin: 15px 0;">
+                                <button id="temp-download-all" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 5px; margin-right: 10px;">下载为ZIP文件</button>
+                                <button id="temp-save-images" style="padding: 10px 20px; background: #27ae60; color: white; border: none; border-radius: 5px; margin-right: 10px;">逐个保存图片</button>
+                                <button id="temp-close" style="padding: 10px 20px; background: #95a5a6; color: white; border: none; border-radius: 5px;">关闭</button>
+                            </div>
+                            <div id="temp-images" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 15px;"></div>
+                        `;
+                        
+                        document.body.appendChild(tempDiv);
+                        
+                        // 显示选中的图片
+                        const tempImagesDiv = tempDiv.querySelector('#temp-images');
+                        const selectedIndexes = Array.from(selectedImages).sort((a, b) => a - b);
+                        
+                        selectedIndexes.forEach(index => {
+                            const image = convertedImages[index];
+                            const imgContainer = document.createElement('div');
+                            imgContainer.style.textAlign = 'center';
+                            imgContainer.innerHTML = `
+                                <img src="${image.data}" style="width: 100%; border: 1px solid #ddd; border-radius: 3px;">
+                                <div style="font-size: 12px; margin-top: 5px;">第${image.pageNum}页</div>
+                                <button onclick="downloadImage('${image.data}', 'page-${image.pageNum}.${image.format}')" 
+                                        style="padding: 5px 10px; background: #3498db; color: white; border: none; border-radius: 3px; font-size: 12px; margin-top: 5px;">
+                                    保存
+                                </button>
+                            `;
+                            tempImagesDiv.appendChild(imgContainer);
+                        });
+                        
+                        // 绑定事件
+                        tempDiv.querySelector('#temp-close').onclick = () => {
+                            document.body.removeChild(tempDiv);
+                        };
+                        
+                        tempDiv.querySelector('#temp-download-all').onclick = async () => {
+                            // 触发ZIP下载
+                            downloadSelectedBtn.click();
+                            document.body.removeChild(tempDiv);
+                        };
+                        
+                        tempDiv.querySelector('#temp-save-images').onclick = () => {
+                            // 逐个下载图片
+                            selectedIndexes.forEach(index => {
+                                const image = convertedImages[index];
+                                setTimeout(() => {
+                                    downloadImage(image.data, `page-${image.pageNum}.${image.format}`);
+                                }, index * 500); // 延迟下载避免浏览器阻止
+                            });
+                            showToast(`开始下载 ${selectedIndexes.length} 张图片...`);
+                        };
+                        
+                    } catch (fallbackError) {
+                        showToast('复制到剪切板失败，请尝试使用下载功能', 'error');
+                    }
+                }
+            });
+
+            // 复制选中图片为文件（系统级别）
+            copyAsFilesBtn.addEventListener('click', async function() {
+                if (selectedImages.size === 0) {
+                    showToast('请先选择要复制的图片', 'error');
+                    return;
+                }
+
+                try {
+                    const selectedIndexes = Array.from(selectedImages).sort((a, b) => a - b);
+                    showToast('正在准备文件...', 'success');
+                    
+                    // 创建文件数组
+                    const files = [];
+                    
+                    for (const index of selectedIndexes) {
+                        const image = convertedImages[index];
+                        
+                        // 将base64转换为Blob
+                        const response = await fetch(image.data);
+                        const blob = await response.blob();
+                        
+                        // 创建File对象
+                        const fileName = `page-${image.pageNum}.${image.format}`;
+                        const file = new File([blob], fileName, {
+                            type: blob.type,
+                            lastModified: Date.now()
+                        });
+                        
+                        files.push(file);
+                    }
+                    
+                    // 尝试使用现代的文件系统API
+                    if ('showSaveFilePicker' in window && files.length === 1) {
+                        // 单文件保存
+                        const fileHandle = await window.showSaveFilePicker({
+                            suggestedName: files[0].name,
+                            types: [{
+                                description: 'Images',
+                                accept: {
+                                    'image/png': ['.png'],
+                                    'image/jpeg': ['.jpg', '.jpeg'],
+                                    'image/webp': ['.webp']
+                                }
+                            }]
+                        });
+                        
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(files[0]);
+                        await writable.close();
+                        
+                        showToast('文件已保存到本地');
+                    } else if ('showDirectoryPicker' in window && files.length > 1) {
+                        // 多文件保存到目录
+                        const dirHandle = await window.showDirectoryPicker();
+                        
+                        for (const file of files) {
+                            const fileHandle = await dirHandle.getFileHandle(file.name, { create: true });
+                            const writable = await fileHandle.createWritable();
+                            await writable.write(file);
+                            await writable.close();
+                        }
+                        
+                        showToast(`已保存 ${files.length} 个文件到选择的目录`);
+                    } else {
+                        // 降级到剪切板API
+                        const clipboardItems = [];
+                        
+                        if (files.length === 1) {
+                            // 单文件直接复制
+                            clipboardItems.push(new ClipboardItem({
+                                [files[0].type]: files[0]
+                            }));
+                        } else {
+                            // 多文件尝试不同的格式
+                            const clipboardData = {};
+                            
+                            // 方法1: 尝试使用 application/x-file-list (实验性)
+                            try {
+                                const fileListBlob = new Blob([JSON.stringify(files.map(f => ({
+                                    name: f.name,
+                                    type: f.type,
+                                    size: f.size
+                                })))], { type: 'application/x-file-list' });
+                                clipboardData['application/x-file-list'] = fileListBlob;
+                            } catch (e) {
+                                console.log('文件列表格式不支持');
+                            }
+                            
+                            // 方法2: 使用 text/uri-list 格式
+                            const uriList = files.map(file => {
+                                return URL.createObjectURL(file);
+                            }).join('\
+');
+                            clipboardData['text/uri-list'] = new Blob([uriList], { type: 'text/uri-list' });
+                            
+                            // 方法3: HTML格式包含所有图片
+                            let htmlContent = '<!DOCTYPE html><html><body>';
+                            for (let i = 0; i < files.length; i++) {
+                                const objectUrl = URL.createObjectURL(files[i]);
+                                htmlContent += '<img src="' + objectUrl + '" alt="' + files[i].name + '" style="display: block; margin: 10px 0; max-width: 100%;">';
+                            }
+                            htmlContent += '</body></html>';
+                            clipboardData['text/html'] = new Blob([htmlContent], { type: 'text/html' });
+                            
+                            // 方法4: 纯文本格式
+                            clipboardData['text/plain'] = new Blob([`已复制 ${files.length} 个图片文件: ${files.map(f => f.name).join(', ')}`], { type: 'text/plain' });
+                            
+                            // 方法5: 添加第一个文件作为主要内容
+                            clipboardData[files[0].type] = files[0];
+                            
+                            clipboardItems.push(new ClipboardItem(clipboardData));
+                        }
+                        
+                        await navigator.clipboard.write(clipboardItems);
+                        showToast(`已复制 ${files.length} 个文件到剪切板（尝试粘贴到文件管理器）`);
+                    }
+                    
+                } catch (error) {
+                    console.error('文件复制失败:', error);
+                    
+                    if (error.name === 'AbortError') {
+                        showToast('操作已取消', 'error');
+                    } else if (error.name === 'NotAllowedError') {
+                        showToast('没有文件访问权限，请使用下载功能', 'error');
+                    } else {
+                        // 最终降级方案：自动下载
+                        showToast('文件复制不支持，自动下载文件...', 'error');
+                        
+                        const selectedIndexes = Array.from(selectedImages).sort((a, b) => a - b);
+                        if (selectedIndexes.length === 1) {
+                            const index = selectedIndexes[0];
+                            const image = convertedImages[index];
+                            downloadImage(image.data, `page-${image.pageNum}.${image.format}`);
+                        } else {
+                            downloadSelectedBtn.click();
+                        }
+                    }
+                }
+            });
+
+            // 复制选中图片为拼接图片
+            copyAsCanvasBtn.addEventListener('click', async function() {
+                if (selectedImages.size === 0) {
+                    showToast('请先选择要复制的图片', 'error');
+                    return;
+                }
+
+                try {
+                    const selectedIndexes = Array.from(selectedImages).sort((a, b) => a - b);
+                    
+                    if (selectedIndexes.length === 1) {
+                        // 单张图片直接复制
+                        const index = selectedIndexes[0];
+                        const image = convertedImages[index];
+                        const response = await fetch(image.data);
+                        const blob = await response.blob();
+                        
+                        await navigator.clipboard.write([
+                            new ClipboardItem({
+                                [blob.type]: blob
+                            })
+                        ]);
+                        showToast(`已复制 1 张图片到剪切板`);
+                        return;
+                    }
+
+                    // 多张图片拼接
+                    showToast('正在拼接图片...', 'success');
+                    
+                    // 创建临时图片元素来获取尺寸
+                    const imageElements = [];
+                    let maxWidth = 0;
+                    let totalHeight = 0;
+                    const padding = 20; // 图片间距
+                    
+                    for (const index of selectedIndexes) {
+                        const image = convertedImages[index];
+                        const img = new Image();
+                        img.src = image.data;
+                        
+                        await new Promise((resolve) => {
+                            img.onload = resolve;
+                        });
+                        
+                        imageElements.push(img);
+                        maxWidth = Math.max(maxWidth, img.width);
+                        totalHeight += img.height + padding;
+                    }
+                    
+                    // 减去最后一个图片的padding
+                    totalHeight -= padding;
+                    
+                    // 创建拼接画布
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = maxWidth;
+                    canvas.height = totalHeight;
+                    
+                    // 设置白色背景
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // 绘制所有图片
+                    let currentY = 0;
+                    for (let i = 0; i < imageElements.length; i++) {
+                        const img = imageElements[i];
+                        const x = (maxWidth - img.width) / 2; // 居中对齐
+                        ctx.drawImage(img, x, currentY);
+                        currentY += img.height + padding;
+                    }
+                    
+                    // 转换为blob并复制到剪切板
+                    canvas.toBlob(async (blob) => {
+                        try {
+                            await navigator.clipboard.write([
+                                new ClipboardItem({
+                                    [blob.type]: blob
+                                })
+                            ]);
+                            showToast(`已将 ${selectedImages.size} 张图片拼接并复制到剪切板`);
+                        } catch (error) {
+                            console.error('复制拼接图片失败:', error);
+                            showToast('复制拼接图片失败', 'error');
+                        }
+                    }, 'image/png');
+                    
+                } catch (error) {
+                    console.error('拼接图片失败:', error);
+                    showToast('拼接图片失败: ' + error.message, 'error');
+                }
+            });
+
+            // 下载选中图片
+            downloadSelectedBtn.addEventListener('click', async function() {
+                if (selectedImages.size === 0) {
+                    showToast('请先选择要下载的图片', 'error');
+                    return;
+                }
+
+                if (selectedImages.size === 1) {
+                    // 单张图片直接下载
+                    const index = Array.from(selectedImages)[0];
+                    const image = convertedImages[index];
+                    downloadImage(image.data, `page-${image.pageNum}.${image.format}`);
+                } else {
+                    // 多张图片打包下载
+                    const zip = new JSZip();
+                    const format = formatSelect.value;
+                    
+                    for (const index of selectedImages) {
+                        const image = convertedImages[index];
+                        const base64Data = image.data.split(',')[1];
+                        zip.file(`page-${image.pageNum}.${format}`, base64Data, {base64: true});
+                    }
+                    
+                    const zipBlob = await zip.generateAsync({type: 'blob'});
+                    saveAs(zipBlob, `selected-images-${new Date().getTime()}.zip`);
+                    showToast(`已下载 ${selectedImages.size} 张选中图片`);
+                }
+            });
+
+            // 下载单个图片
+            function downloadImage(dataUrl, fileName) {
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = fileName;
+                link.click();
+            }
+
+            // 下载所有图片（ZIP压缩包）
+            downloadAllBtn.addEventListener('click', async function() {
+                if (convertedImages.length === 0) {
+                    showToast('没有可下载的图片', 'error');
+                    return;
+                }
+                
+                const zip = new JSZip();
+                const format = formatSelect.value;
+                
+                // 添加所有图片到ZIP
+                convertedImages.forEach(image => {
+                    // 从base64数据URL中提取实际的base64数据
+                    const base64Data = image.data.split(',')[1];
+                    zip.file(`page-${image.pageNum}.${format}`, base64Data, {base64: true});
+                });
+                
+                // 生成ZIP文件
+                const zipBlob = await zip.generateAsync({type: 'blob'});
+                
+                // 下载ZIP文件
+                saveAs(zipBlob, `pdf-images-${new Date().getTime()}.zip`);
+                showToast(`已下载所有 ${convertedImages.length} 张图片`);
+            });
+
+            // 清除结果
+            clearBtn.addEventListener('click', function() {
+                resultContainer.style.display = 'none';
+                optionsPanel.style.display = 'block';
+                previewContainer.innerHTML = '';
+                convertedImages = [];
+                selectedImages.clear();
+            });
+
+            // 显示Toast通知
+            function showToast(message, type = 'success') {
+                toast.textContent = message;
+                toast.className = `toast ${type}`;
+                toast.classList.add('show');
+                
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 3000);
+            }
+
+            // 辅助函数：将文件读取为ArrayBuffer
+            function readFileAsArrayBuffer(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsArrayBuffer(file);
+                });
+            }
+        });
+    </script>
+</body>
+</html>

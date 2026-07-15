@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 工具箱 · 免费、纯前端的在线工具集</title>
+<meta name="description" content="一组免费、纯前端、数据不出浏览器的 AI 辅助小工具：图表转高清图片、Markdown 转 PDF 等。">
+<style>
+  /* ===== 设计令牌（与各工具统一） ===== */
+  :root {
+    --bg: #f6f7f9;
+    --bg-grad: linear-gradient(180deg, #eef2ff 0%, #f6f7f9 280px);
+    --panel: #ffffff;
+    --border: #e2e5ea;
+    --text: #1f2329;
+    --text-muted: #6b7280;
+    --accent: #2f6df6;
+    --accent-hover: #1f57d8;
+    --accent-soft: #eaf1ff;
+    --danger: #e5484d;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
+    --shadow: 0 4px 14px rgba(0,0,0,.06), 0 1px 3px rgba(0,0,0,.04);
+    --shadow-lg: 0 18px 50px rgba(0,0,0,.12);
+    --radius: 14px;
+  }
+  html[data-theme="dark"] {
+    --bg: #16171a;
+    --bg-grad: linear-gradient(180deg, #1a1c24 0%, #16171a 280px);
+    --panel: #1d1f23;
+    --border: #2c2f36;
+    --text: #e7e9ee;
+    --text-muted: #9aa0ac;
+    --accent: #4d86ff;
+    --accent-hover: #6c98ff;
+    --accent-soft: #1e2433;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
+    --shadow: 0 4px 14px rgba(0,0,0,.35);
+    --shadow-lg: 0 18px 50px rgba(0,0,0,.5);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    background-image: var(--bg-grad);
+    background-repeat: no-repeat;
+    color: var(--text);
+    min-height: 100vh;
+    transition: background .2s, color .2s;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ===== 顶部导航 ===== */
+  nav {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: saturate(180%) blur(12px);
+    background: color-mix(in srgb, var(--panel) 78%, transparent);
+    border-bottom: 1px solid var(--border);
+  }
+  .nav-inner {
+    max-width: 1140px; margin: 0 auto;
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px;
+  }
+  .brand {
+    display: flex; align-items: center; gap: 10px;
+    font-weight: 800; font-size: 17px; white-space: nowrap;
+  }
+  .brand-mark {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), #7a5cff);
+    color: #fff; display: grid; place-items: center;
+    font-size: 16px; box-shadow: 0 4px 12px color-mix(in srgb, var(--accent) 40%, transparent);
+  }
+  .search {
+    flex: 1; max-width: 420px; position: relative;
+  }
+  .search input {
+    width: 100%; padding: 9px 14px 9px 38px;
+    border: 1px solid var(--border); border-radius: 10px;
+    background: var(--panel); color: var(--text);
+    font-size: 14px; outline: none; transition: all .15s;
+  }
+  .search input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .search .ico { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); opacity: .5; font-size: 14px; }
+  .nav-right { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  .icon-btn {
+    width: 38px; height: 38px; border-radius: 10px;
+    border: 1px solid var(--border); background: var(--panel);
+    color: var(--text); cursor: pointer; font-size: 16px;
+    display: grid; place-items: center; transition: all .15s;
+  }
+  .icon-btn:hover { border-color: var(--accent); }
+
+  /* ===== Hero ===== */
+  .hero { max-width: 1140px; margin: 0 auto; padding: 56px 20px 28px; text-align: center; }
+  .hero .eyebrow {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--accent); font-weight: 600;
+    background: var(--accent-soft); padding: 5px 12px; border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  .hero h1 {
+    font-size: clamp(30px, 5vw, 46px); line-height: 1.15; font-weight: 800;
+    letter-spacing: -0.02em;
+  }
+  .hero h1 .grad {
+    background: linear-gradient(120deg, var(--accent), #7a5cff 60%, #ff6ec7);
+    -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .hero p { margin: 18px auto 0; max-width: 580px; color: var(--text-muted); font-size: 16px; line-height: 1.7; }
+  .badges { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 24px; }
+  .badge {
+    font-size: 13px; color: var(--text); background: var(--panel);
+    border: 1px solid var(--border); padding: 7px 14px; border-radius: 999px;
+    box-shadow: var(--shadow-sm); display: inline-flex; gap: 6px; align-items: center;
+  }
+
+  /* ===== 分类筛选 ===== */
+  .filters {
+    max-width: 1140px; margin: 8px auto 0; padding: 0 20px;
+    display: flex; gap: 8px; flex-wrap: wrap;
+  }
+  .chip {
+    padding: 7px 16px; border-radius: 999px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel);
+    color: var(--text-muted); font-size: 13px; font-weight: 500;
+    transition: all .15s;
+  }
+  .chip:hover { color: var(--text); border-color: var(--accent); }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  /* ===== 工具网格 ===== */
+  .tools-wrap { max-width: 1140px; margin: 0 auto; padding: 24px 20px 60px; }
+  .grid {
+    display: grid; gap: 18px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  }
+  .card {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 22px;
+    cursor: pointer; transition: all .2s ease;
+    display: flex; flex-direction: column; gap: 12px;
+    position: relative; overflow: hidden;
+  }
+  .card::before {
+    content: ''; position: absolute; inset: 0; border-radius: var(--radius);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--card-color, var(--accent)) 22%, transparent), transparent 45%);
+    opacity: 0; transition: opacity .2s; pointer-events: none;
+  }
+  .card:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); border-color: var(--card-color, var(--accent)); }
+  .card:hover::before { opacity: .12; }
+  .card-head { display: flex; align-items: center; gap: 14px; }
+  .card-icon {
+    width: 48px; height: 48px; border-radius: 12px; flex-shrink: 0;
+    display: grid; place-items: center; font-size: 24px;
+    background: color-mix(in srgb, var(--card-color, var(--accent)) 16%, transparent);
+    color: var(--card-color, var(--accent));
+  }
+  .card-title { font-size: 17px; font-weight: 700; }
+  .card-cat { font-size: 12px; color: var(--text-muted); }
+  .card-desc { color: var(--text-muted); font-size: 14px; line-height: 1.65; flex: 1; }
+  .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tag {
+    font-size: 11.5px; color: var(--text-muted);
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 3px 9px; border-radius: 6px;
+  }
+  .card-cta {
+    display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid var(--border);
+    font-size: 13px; color: var(--card-color, var(--accent)); font-weight: 600;
+  }
+  .card-cta .new-tab {
+    color: var(--text-muted); font-weight: 500;
+    padding: 4px 8px; border-radius: 6px; transition: all .15s;
+  }
+  .card-cta .new-tab:hover { color: var(--accent); background: var(--accent-soft); }
+
+  .empty { text-align: center; color: var(--text-muted); padding: 60px 20px; font-size: 14px; }
+
+  /* ===== footer ===== */
+  footer {
+    border-top: 1px solid var(--border); background: var(--panel);
+    padding: 24px 20px; text-align: center; color: var(--text-muted); font-size: 13px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+
+  /* ===== 嵌入覆盖层 ===== */
+  .embed-overlay {
+    position: fixed; inset: 0; z-index: 200;
+    background: var(--bg);
+    display: none; flex-direction: column;
+  }
+  .embed-overlay.show { display: flex; }
+  .embed-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; background: var(--panel);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .embed-title { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; }
+  .embed-title .em-ico { font-size: 18px; }
+  .embed-actions { margin-left: auto; display: flex; gap: 6px; }
+  .embed-btn {
+    padding: 7px 12px; font-size: 13px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--panel);
+    color: var(--text); border-radius: 8px; font-weight: 500;
+    display: inline-flex; gap: 5px; align-items: center; transition: all .15s;
+  }
+  .embed-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .embed-btn.close { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .embed-btn.close:hover { background: var(--accent-hover); }
+  .embed-frame { flex: 1; border: none; width: 100%; background: var(--bg); }
+
+  @media (max-width: 640px) {
+    .hero { padding: 40px 18px 20px; }
+    .search { display: none; }
+    .brand { font-size: 15px; }
+  }
+</style>
+</head>
+<body>
+  <nav>
+    <div class="nav-inner">
+      <div class="brand">
+        <span class="brand-mark">🧰</span>
+        <span>AI 工具箱</span>
+      </div>
+      <label class="search">
+        <span class="ico">🔍</span>
+        <input id="searchInput" type="text" placeholder="搜索工具…" autocomplete="off">
+      </label>
+      <div class="nav-right">
+        <button class="icon-btn" id="themeToggle" title="切换深色 / 浅色">🌙</button>
+      </div>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <span class="eyebrow">✨ 纯前端 · 数据不出浏览器</span>
+    <h1>一组顺手好用的<br><span class="grad">AI 辅助小工具</span></h1>
+    <p>图表转高清图片、Markdown 转 PDF…… 全部在浏览器本地完成，无需登录、不上传文件、免费使用。</p>
+    <div class="badges">
+      <span class="badge">🔒 隐私优先</span>
+      <span class="badge">⚡️ 即开即用</span>
+      <span class="badge">📦 单文件部署</span>
+      <span class="badge">🌙 深色模式</span>
+    </div>
+  </section>
+
+  <div class="filters" id="filters"></div>
+
+  <div class="tools-wrap">
+    <div class="grid" id="grid"></div>
+    <div class="empty" id="empty" style="display:none">没有找到匹配的工具 🤔</div>
+  </div>
+
+  <footer>
+    <p>© <span id="year"></span> AI 工具箱 · 纯前端实现，数据始终留在你的浏览器里</p>
+  </footer>
+
+  <!-- 工具嵌入覆盖层 -->
+  <div class="embed-overlay" id="embedOverlay">
+    <div class="embed-bar">
+      <button class="embed-btn" id="embedBack" title="返回工具箱">← 返回</button>
+      <div class="embed-title"><span class="em-ico" id="embedIcon">🧰</span><span id="embedName">工具</span></div>
+      <div class="embed-actions">
+        <button class="embed-btn" id="embedReload" title="重新加载">⟳ 刷新</button>
+        <a class="embed-btn" id="embedNewTab" href="#" target="_blank" rel="noopener" title="在新标签打开">↗ 新标签</a>
+        <button class="embed-btn close" id="embedClose" title="关闭 (Esc)">✕ 关闭</button>
+      </div>
+    </div>
+    <iframe class="embed-frame" id="embedFrame" title="工具"></iframe>
+  </div>
+
+<script>
+/* ============================================================
+   工具箱首页
+   · 卡片网格展示工具，点击 → 全屏 iframe 嵌入
+   · 支持搜索、分类筛选、深色模式（localStorage）
+   · 新增工具：在下方 TOOLS 数组里加一项即可
+   ============================================================ */
+
+/* ---------- 工具数据（在此增删工具） ---------- */
+const TOOLS = [
+  {
+    id: 'diagram',
+    name: '图表转高清图片',
+    icon: '📊',
+    cat: '图片',
+    color: '#2f6df6',
+    url: 'photo/diagram-converter.html',
+    desc: '把 Mermaid / Graphviz / PlantUML 图表源码渲染成可缩放矢量，一键导出 2×～4× 高清 PNG 或 SVG，支持透明背景与全屏预览。',
+    tags: ['Mermaid', 'Graphviz', 'PlantUML', 'PNG', 'SVG'],
+  },
+  {
+    id: 'md2pdf',
+    name: 'Markdown 转 PDF',
+    icon: '📝',
+    cat: '文档',
+    color: '#0aa66e',
+    url: 'photo/md2PdfV2/index.html',
+    desc: '在线编辑 Markdown 并实时预览，支持 GFM、代码高亮、本地图片内嵌，一键导出排版精美的 PDF 或自包含 HTML。',
+    tags: ['Markdown', 'PDF', 'HTML', '代码高亮'],
+  },
+];
+
+/* ---------- 主题 ---------- */
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
+  try { localStorage.setItem('aitools-theme', t); } catch (e) {}
+}
+document.getElementById('themeToggle').onclick = () => {
+  const cur = document.documentElement.getAttribute('data-theme') || 'light';
+  applyTheme(cur === 'dark' ? 'light' : 'dark');
+};
+let savedTheme = null;
+try { savedTheme = localStorage.getItem('aitools-theme'); } catch (e) {}
+applyTheme(savedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+/* ---------- 分类筛选 ---------- */
+const CATS = ['全部', ...Array.from(new Set(TOOLS.map(t => t.cat)))];
+const filtersEl = document.getElementById('filters');
+let activeCat = '全部';
+CATS.forEach(c => {
+  const b = document.createElement('button');
+  b.className = 'chip' + (c === '全部' ? ' active' : '');
+  b.textContent = c;
+  b.onclick = () => { activeCat = c; render(); };
+  filtersEl.appendChild(b);
+});
+
+/* ---------- 渲染卡片 ---------- */
+const grid = document.getElementById('grid');
+const emptyEl = document.getElementById('empty');
+const searchInput = document.getElementById('searchInput');
+let keyword = '';
+
+function render() {
+  // 更新分类高亮
+  filtersEl.querySelectorAll('.chip').forEach((b, i) => b.classList.toggle('active', CATS[i] === activeCat));
+
+  const kw = keyword.trim().toLowerCase();
+  const list = TOOLS.filter(t => {
+    const catOk = activeCat === '全部' || t.cat === activeCat;
+    const kwOk = !kw || (t.name + t.desc + t.tags.join(' ') + t.cat).toLowerCase().includes(kw);
+    return catOk && kwOk;
+  });
+
+  grid.innerHTML = '';
+  emptyEl.style.display = list.length ? 'none' : 'block';
+
+  list.forEach(t => {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.style.setProperty('--card-color', t.color);
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="card-icon">${t.icon}</div>
+        <div>
+          <div class="card-title">${t.name}</div>
+          <div class="card-cat">${t.cat} · 在线工具</div>
+        </div>
+      </div>
+      <div class="card-desc">${t.desc}</div>
+      <div class="card-tags">${t.tags.map(x => `<span class="tag">${x}</span>`).join('')}</div>
+      <div class="card-cta">
+        <span>打开使用 →</span>
+        <span class="new-tab" data-open="1">↗ 新标签</span>
+      </div>`;
+    card.onclick = (e) => {
+      if (e.target.dataset.open === '1') {
+        e.stopPropagation();
+        window.open(t.url, '_blank', 'noopener');
+      } else {
+        openEmbed(t);
+      }
+    };
+    grid.appendChild(card);
+  });
+}
+
+searchInput.addEventListener('input', () => { keyword = searchInput.value; render(); });
+
+/* ---------- 嵌入覆盖层 ---------- */
+const overlay = document.getElementById('embedOverlay');
+const frame = document.getElementById('embedFrame');
+let currentTool = null;
+
+function openEmbed(t) {
+  currentTool = t;
+  document.getElementById('embedIcon').textContent = t.icon;
+  document.getElementById('embedName').textContent = t.name;
+  document.getElementById('embedNewTab').href = t.url;
+  frame.src = t.url;
+  overlay.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  if (location.hash !== '#' + t.id) history.replaceState(null, '', '#' + t.id);
+}
+function closeEmbed() {
+  overlay.classList.remove('show');
+  document.body.style.overflow = '';
+  frame.src = 'about:blank';
+  if (location.hash) history.replaceState(null, '', location.pathname);
+}
+document.getElementById('embedClose').onclick = closeEmbed;
+document.getElementById('embedBack').onclick = closeEmbed;
+document.getElementById('embedReload').onclick = () => { if (currentTool) frame.src = currentTool.url; };
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('show')) closeEmbed(); });
+
+/* ---------- 启动 ---------- */
+document.getElementById('year').textContent = new Date().getFullYear();
+render();
+// 支持 #工具id 直接打开
+const hashId = location.hash.replace('#', '');
+if (hashId) {
+  const t = TOOLS.find(x => x.id === hashId);
+  if (t) openEmbed(t);
+}
+</script>
+</body>
+</html>
