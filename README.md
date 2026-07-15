@@ -12,11 +12,16 @@
 
 ### AI 工具集（`index.html`）
 
-一组免费、纯前端的在线工具：
+一组免费、纯前端的在线工具，按用途分类：
 
-- **图表转高清图片** — 浏览器内一键导出
-- **Markdown 转 PDF** — 无需后端
-- 更多工具持续集成中…
+**📝 文档类**
+- **Markdown 转 PDF / HTML** — 在线编辑、实时预览、代码高亮、一键导出
+
+**🖼️ 图片类**
+- **图表转高清图片** — Mermaid / Graphviz / PlantUML → 2×–4× 高清 PNG / SVG
+- **PDF 转图片** — 浏览器内逐页渲染，按页/范围导出，文件不上传
+
+更多工具持续集成中…
 
 特点：
 
@@ -48,10 +53,13 @@ npx serve .
 
 ```
 .
-├── index.html              # 博客 / AI 工具集首页
-├── photo/
-│   ├── diagram-converter.html   # 图表转图片工具
-│   └── md2PdfV2/                # Markdown → PDF 工具
+├── index.html                   # 博客 / AI 工具集首页
+├── md2pdf/                      # Markdown → PDF / HTML
+│   ├── index.html
+│   └── libs/
+├── photo/                       # 图片类工具
+│   ├── diagram-converter.html       # 图表转高清图片
+│   └── pdf2imageV2.html             # PDF → 图片
 └── README.md
 ```
 
