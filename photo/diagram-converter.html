@@ -1059,17 +1059,40 @@ function openFullscreen() {
   const svg = fsImg.querySelector('svg');
   if (svg) { svg.style.maxWidth = '100%'; svg.style.height = 'auto'; svg.style.display = 'block'; }
   fsImg.style.background = (exportBg === 'transparent') ? '#ffffff' : exportBg;
-  fsZoom = 1; fsPanX = 0; fsPanY = 0;
-  applyFsTransform();
   fsOverlay.hidden = false;
+  // 等下一帧：必须等 overlay 显示且 svg 有 layout 尺寸，再 fit
+  requestAnimationFrame(() => fitToScreen());
 }
 function closeFullscreen() { fsOverlay.hidden = true; }
 function applyFsTransform() {
   fsImg.style.transform = 'translate(' + fsPanX + 'px,' + fsPanY + 'px) scale(' + fsZoom + ')';
   fsInfo.textContent = Math.round(fsZoom * 100) + '%';
 }
+// 让 SVG 完整居中且填满可见舞台（不超出）
+function fitToScreen() {
+  const svg = fsImg.querySelector('svg');
+  if (!svg) { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); return; }
+  // 拿 SVG 的真实像素尺寸（width/height 属性或 viewBox）
+  let w = parseFloat(svg.getAttribute('width'));
+  let h = parseFloat(svg.getAttribute('height'));
+  if (!w || !h) {
+    const vb = svg.viewBox && svg.viewBox.baseVal;
+    if (vb && vb.width && vb.height) { w = vb.width; h = vb.height; }
+  }
+  if (!w || !h) { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); return; }
+  const stage = fsStage.getBoundingClientRect();
+  const padding = 24; // 四周留点空
+  const sx = (stage.width  - padding * 2) / w;
+  const sy = (stage.height - padding * 2) / h;
+  // 用较小的一边来 fit，留下居中位置
+  const z = Math.min(sx, sy, 1); // 永远不放大超过 1
+  fsZoom = Math.max(0.1, +z.toFixed(3));
+  fsPanX = 0;
+  fsPanY = 0;
+  applyFsTransform();
+}
 function fsZoomBy(delta) {
-  fsZoom = Math.min(8, Math.max(0.2, +(fsZoom + delta).toFixed(2)));
+  fsZoom = Math.min(8, Math.max(0.1, +(fsZoom + delta).toFixed(2)));
   applyFsTransform();
 }
 $('fullscreenBtn').onclick = openFullscreen;
@@ -1077,8 +1100,18 @@ $('fsClose').onclick = closeFullscreen;
 $('fsZoomIn').onclick = () => fsZoomBy(0.2);
 $('fsZoomOut').onclick = () => fsZoomBy(-0.2);
 $('fsZoomReset').onclick = () => { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); };
-$('fsFit').onclick = $('fsZoomReset').onclick;
+$('fsFit').onclick = fitToScreen;
 $('fsDownload').onclick = downloadPng;
+
+// 窗口大小变化时，自动重新 fit（如果当前 zoom ≤ 1，避免覆盖用户主动放大）
+let fsResizeTimer = null;
+window.addEventListener('resize', () => {
+  if (fsOverlay.hidden) return;
+  clearTimeout(fsResizeTimer);
+  fsResizeTimer = setTimeout(() => {
+    if (fsZoom <= 1.01) fitToScreen();
+  }, 150);
+});
 
 // 滚轮缩放
 fsStage.addEventListener('wheel', e => {
