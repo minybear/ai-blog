@@ -230,7 +230,73 @@
     .brand { font-size: 15px; }
   }
 </style>
-<script src="theme.js"></script>
+<script>
+/* theme.js — 全站统一主题同步（内联版，避免单独 JS 文件被 IPGuard 加密） */
+try {
+  (function () {
+    var KEY = 'aitools-theme';
+    var MSG = 'aitools:theme';
+    var current = 'auto';
+    function resolve(t, sysDark) { return (t === 'dark' || t === 'light') ? t : (sysDark ? 'dark' : 'light'); }
+    function sysDark() { return !!(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches); }
+    function read() { try { return localStorage.getItem(KEY) || 'auto'; } catch (e) { return 'auto'; } }
+    function write(v) { try { localStorage.setItem(KEY, v); } catch (e) {} }
+    function apply(value) {
+      current = value || 'auto';
+      var eff = resolve(current, sysDark());
+      var root = document.documentElement;
+      root.setAttribute('data-theme', eff);
+      root.setAttribute('data-theme-mode', current);
+      document.dispatchEvent(new CustomEvent('aitools:themechange', { detail: { mode: current, effective: eff } }));
+    }
+    window.addEventListener('storage', function (e) { if (e.key === KEY) apply(e.newValue || 'auto'); });
+    window.addEventListener('message', function (e) {
+      var d = e.data; if (!d || d.type !== MSG) return;
+      if (d.mode) { write(d.mode); apply(d.mode); }
+    });
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var onSys = function () { if (current === 'auto') apply('auto'); };
+      if (mq.addEventListener) mq.addEventListener('change', onSys);
+      else if (mq.addListener) mq.addListener(onSys);
+    }
+    apply(read());
+    function broadcast(mode) {
+      document.querySelectorAll('iframe').forEach(function (f) {
+        try { f.contentWindow && f.contentWindow.postMessage({ type: MSG, mode: mode }, '*'); } catch (_) {}
+      });
+      if (window.parent && window.parent !== window) {
+        try { window.parent.postMessage({ type: MSG, mode: mode }, '*'); } catch (_) {}
+      }
+    }
+    window.AIToolsTheme = {
+      get: function () { return current; },
+      effective: function () { return document.documentElement.getAttribute('data-theme'); },
+      set: function (mode) {
+        mode = (mode === 'light' || mode === 'dark' || mode === 'auto') ? mode : 'auto';
+        write(mode); apply(mode); broadcast(mode);
+      },
+      toggle: function () { var eff = document.documentElement.getAttribute('data-theme'); this.set(eff === 'dark' ? 'light' : 'dark'); },
+      cycle: function () { this.set(current === 'auto' ? 'light' : current === 'light' ? 'dark' : 'auto'); },
+      subscribe: function (fn) {
+        var h = function (e) { fn(e.detail); };
+        document.addEventListener('aitools:themechange', h);
+        return function () { document.removeEventListener('aitools:themechange', h); };
+      }
+    };
+  })();
+} catch (e) {
+  if (window.console && console.error) console.error('[theme] init failed:', e);
+  if (!window.AIToolsTheme) {
+    window.AIToolsTheme = {
+      get: function () { return 'auto'; },
+      effective: function () { return 'light'; },
+      set: function () {}, toggle: function () {}, cycle: function () {},
+      subscribe: function () { return function () {}; }
+    };
+  }
+}
+</script>
 </head>
 <body>
   <nav>
