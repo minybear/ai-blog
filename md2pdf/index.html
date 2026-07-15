@@ -251,7 +251,7 @@
 </head>
 <body>
   <header>
-    <a class="back-link" href="../index.html" title="返回工具箱">← 工具箱</a>
+    <a class="back-link" id="backLink" href="#" title="返回工具箱">← 工具箱</a>
     <div class="logo">📝 Markdown 转换 <span class="dot">·</span> MD → PDF / HTML</div>
     <div class="spacer"></div>
 
@@ -329,6 +329,21 @@ $('themeToggle').onclick = () => {
 if (window.self !== window.top) {
   const bl = document.querySelector('.back-link');
   if (bl) bl.style.display = 'none';
+} else {
+  // 直接访问时：计算到仓库根 index.html 的相对路径
+  // 兼容 GitHub Pages (/ai-blog/...) 与本地 (./ 或 ../)
+  const bl = document.getElementById('backLink');
+  if (bl) {
+    bl.addEventListener('click', (e) => {
+      e.preventDefault();
+      const path = location.pathname;                       // 如 /ai-blog/md2pdf/index.html
+      const segs = path.split('/').filter(Boolean);          // ['ai-blog','md2pdf','index.html']
+      const root = location.hostname.endsWith('github.io')  // Pages 站点：跳到 /<repo>/
+        ? '/' + segs[0] + '/'
+        : (segs.length > 1 ? '../' : '');                   // 本地：上一层（若已在根则不动）
+      location.href = root + 'index.html';
+    });
+  }
 }
 let savedTheme = null;
 try { savedTheme = localStorage.getItem('aitools-theme'); } catch (e) {}
