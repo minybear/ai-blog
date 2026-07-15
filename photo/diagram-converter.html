@@ -346,13 +346,21 @@
     background: #fff; padding: 20px; border-radius: 8px;
     box-shadow: 0 10px 50px rgba(0,0,0,.5);
     user-select: none;
-    /* viewport 模式：fs-img 自己有确定尺寸（flex 占满），SVG 100% 填满 */
+    /* viewport 容器：fs-img 100% 占满 fs-stage，SVG 100% 填它并等比 contain */
     display: flex; align-items: center; justify-content: center;
     width: 100%; height: 100%;
     box-sizing: border-box;
   }
   .fs-img.no-transition { transition: none; }
-  .fs-img svg { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; }
+  /* 关键：SVG 100% × 100%，由 preserveAspectRatio="xMidYMid meet" 强制等比 contain。
+     CSS 不要写 width/height auto，否则浏览器会按 viewBox 比例去匹配其中一个轴填满，变形。 */
+  .fs-img svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* 兜底属性（被 openFullscreen 里直接设置覆盖） */
+    preserveAspectRatio: xMidYMid meet;
+  }
   .fs-hint {
     text-align: center; padding: 6px; font-size: 11px;
     color: rgba(255,255,255,.5); background: rgba(0,0,0,.3);
@@ -1060,7 +1068,15 @@ function openFullscreen() {
   if (!lastSvgText) { toast('没有可预览的图表，请先渲染'); return; }
   fsImg.innerHTML = lastSvgText;
   const svg = fsImg.querySelector('svg');
-  if (svg) { svg.style.maxWidth = '100%'; svg.style.height = 'auto'; svg.style.display = 'block'; }
+  if (svg) {
+    // 强制 SVG 自身撑满 fs-img，并由 preserveAspectRatio 保证等比 contain
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', '100%');
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.maxWidth = '100%';
+    svg.style.maxHeight = '100%';
+    svg.style.display = 'block';
+  }
   fsImg.style.background = (exportBg === 'transparent') ? '#ffffff' : exportBg;
   fsOverlay.hidden = false;
   // 等下一帧：必须等 overlay 显示且 svg 有 layout 尺寸，再 fit
@@ -1071,26 +1087,31 @@ function applyFsTransform() {
   fsImg.style.transform = 'translate(' + fsPanX + 'px,' + fsPanY + 'px) scale(' + fsZoom + ')';
   fsInfo.textContent = Math.round(fsZoom * 100) + '%';
 }
-// 让 SVG 完整居中且填满可见舞台（不超出）
+// 按 SVG 的"内在宽高比"（viewBox 或 width/height）算 fit zoom。
+// 不读 CSS 渲染尺寸——因为 SVG 现在是 100% × 100%，它总是等于 fs-img 尺寸，没意义。
 function fitToScreen() {
   const svg = fsImg.querySelector('svg');
   if (!svg) { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); return; }
-  // 先把 fs-img 的 transform 清零，量出 SVG 的"自然渲染尺寸"（即不受 scale 影响的尺寸）
-  const prev = fsImg.style.transform;
-  fsImg.style.transform = 'none';
-  // 强制 reflow
-  void fsImg.offsetHeight;
-  const natural = svg.getBoundingClientRect();
-  fsImg.style.transform = prev;
-  const w = natural.width;
-  const h = natural.height;
+  // 1) 拿 SVG 的 viewBox（最可靠的内在比例）
+  let w = 0, h = 0;
+  const vb = svg.viewBox && svg.viewBox.baseVal;
+  if (vb && vb.width && vb.height) { w = vb.width; h = vb.height; }
+  // 2) 兜底：width/height 属性（去掉 px/%）
+  if (!w || !h) {
+    const wAttr = parseFloat(svg.getAttribute('width'));
+    const hAttr = parseFloat(svg.getAttribute('height'));
+    if (wAttr && hAttr) { w = wAttr; h = hAttr; }
+  }
   if (!w || !h) { fsZoom = 1; fsPanX = 0; fsPanY = 0; applyFsTransform(); return; }
+  // 3) 用 fs-stage 的可视尺寸算缩放
   const stage = fsStage.getBoundingClientRect();
-  const padding = 24; // 四周留点空
-  const sx = (stage.width  - padding * 2) / w;
-  const sy = (stage.height - padding * 2) / h;
-  // 用较小的一边来 fit，留下居中位置
-  const z = Math.min(sx, sy, 1); // 永远不放大超过 1
+  const padding = 24;
+  const innerW = stage.width  - padding * 2 - 40; // 40 = fs-img 的 padding-left+right
+  const innerH = stage.height - padding * 2 - 40;
+  const sx = innerW / w;
+  const sy = innerH / h;
+  // 永远不放大超过 1（保持原图清晰度）
+  const z = Math.min(sx, sy, 1);
   fsZoom = Math.max(0.1, +z.toFixed(3));
   fsPanX = 0;
   fsPanY = 0;
