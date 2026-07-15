@@ -20,3 +20,7 @@ node_modules/
 dist/
 .cache/
 .parcel-cache/
+
+# Local secrets / recovery codes
+recovery-codes.txt
+*recovery-codes*

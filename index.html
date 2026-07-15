@@ -230,6 +230,7 @@
     .brand { font-size: 15px; }
   }
 </style>
+<script src="theme.js"></script>
 </head>
 <body>
   <nav>
@@ -250,7 +251,7 @@
           <span>Star</span>
           <span class="star-count" id="starCount" aria-hidden="true">…</span>
         </a>
-        <button class="icon-btn" id="themeToggle" title="切换深色 / 浅色">🌙</button>
+        <button class="icon-btn" id="themeToggle" title="切换主题：自动 / 浅色 / 深色">🌓</button>
       </div>
     </div>
   </nav>
@@ -334,25 +335,26 @@ const TOOLS = [
   },
 ];
 
-/* ---------- 主题 ---------- */
-function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  document.getElementById('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
-  try { localStorage.setItem('aitools-theme', t); } catch (e) {}
+/* ---------- 主题（由 theme.js 提供 AIToolsTheme API） ---------- */
+const themeIcon = { auto: '🌓', light: '☀️', dark: '🌙' };
+function paintThemeBtn() {
+  const mode = window.AIToolsTheme.get();
+  document.getElementById('themeToggle').textContent = themeIcon[mode] || '🌓';
 }
+document.getElementById('themeToggle').onclick = () => {
+  window.AIToolsTheme.cycle();
+};
+window.AIToolsTheme.subscribe(paintThemeBtn);
+paintThemeBtn();
 
-/* ---------- GitHub Star 计数（静默拉取，失败则隐藏数字） ---------- */
+/* ---------- GitHub Star 计数（静默拉取，失败则保留 …） ---------- */
 (function fetchStarCount() {
   const el = document.getElementById('starCount');
   if (!el) return;
-  // GitHub 公开 API，无需 token，但有 60/h 匿名限流；缓存 30 分钟
   const KEY = 'aitools-stars-cache-v1';
   try {
     const cached = JSON.parse(localStorage.getItem(KEY) || 'null');
-    if (cached && Date.now() - cached.ts < 30 * 60 * 1000) {
-      el.textContent = cached.count;
-      return;
-    }
+    if (cached && Date.now() - cached.ts < 30 * 60 * 1000) { el.textContent = cached.count; return; }
   } catch (e) {}
   fetch('https://api.github.com/repos/minybear/ai-blog')
     .then(r => r.ok ? r.json() : null)
@@ -362,15 +364,8 @@ function applyTheme(t) {
       el.textContent = n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(n);
       try { localStorage.setItem(KEY, JSON.stringify({ ts: Date.now(), count: el.textContent })); } catch (e) {}
     })
-    .catch(() => { /* 静默失败：保留 … 即可 */ });
+    .catch(() => {});
 })();
-document.getElementById('themeToggle').onclick = () => {
-  const cur = document.documentElement.getAttribute('data-theme') || 'light';
-  applyTheme(cur === 'dark' ? 'light' : 'dark');
-};
-let savedTheme = null;
-try { savedTheme = localStorage.getItem('aitools-theme'); } catch (e) {}
-applyTheme(savedTheme || (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
 
 /* ---------- 分类筛选 ---------- */
 const CATS = ['全部', ...Array.from(new Set(TOOLS.map(t => t.cat)))];
@@ -450,6 +445,14 @@ function openEmbed(t) {
   overlay.classList.add('show');
   document.body.style.overflow = 'hidden';
   if (location.hash !== '#' + t.id) history.replaceState(null, '', '#' + t.id);
+  // 工具页加载完成后，把当前主题同步过去（避免用户切过主题后打开工具时不一致）
+  frame.addEventListener('load', () => {
+    try {
+      frame.contentWindow && frame.contentWindow.postMessage(
+        { type: 'aitools:theme', mode: window.AIToolsTheme.get() }, '*'
+      );
+    } catch (_) {}
+  }, { once: true });
 }
 function closeEmbed() {
   overlay.classList.remove('show');

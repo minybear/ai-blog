@@ -246,8 +246,8 @@
     .pane.left { max-width: none; border-right: none; border-bottom: 1px solid var(--border); min-height: 42%; }
     #preview { padding: 20px; }
     header { gap: 8px; }
-  }
-</style>
+  </style>
+<script src="../theme.js"></script>
 </head>
 <body>
   <header>
@@ -266,7 +266,7 @@
     <button class="btn" id="clearBtn">清空</button>
     <button class="btn" id="exportHtmlBtn">⬇ 导出 HTML</button>
     <button class="btn primary" id="exportPdfBtn">⬇ 导出 PDF</button>
-    <button class="btn icon-only" id="themeToggle" title="切换主题">🌙</button>
+    <button class="btn icon-only" id="themeToggle" title="切换主题：自动 / 浅色 / 深色">🌓</button>
   </header>
 
   <main>
@@ -315,16 +315,16 @@ const preview = $('preview');
 const stat = $('stat');
 const toastEl = $('toast');
 
-/* ---------- 主题 ---------- */
-function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  $('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
-  try { localStorage.setItem('aitools-theme', t); } catch (e) {}
+/* ---------- 主题（由 ../theme.js 提供 AIToolsTheme API） ---------- */
+const themeIcon = { auto: '🌓', light: '☀️', dark: '🌙' };
+function paintThemeBtn() {
+  const el = document.getElementById('themeToggle');
+  if (el) el.textContent = themeIcon[window.AIToolsTheme.get()] || '🌓';
 }
-$('themeToggle').onclick = () => {
-  const cur = document.documentElement.getAttribute('data-theme') || 'light';
-  applyTheme(cur === 'dark' ? 'light' : 'dark');
-};
+document.getElementById('themeToggle').onclick = () => window.AIToolsTheme.cycle();
+window.AIToolsTheme.subscribe(paintThemeBtn);
+paintThemeBtn();
+
 // 被首页 iframe 嵌入时，隐藏「← 工具箱」返回按钮（由首页覆盖层提供返回）
 if (window.self !== window.top) {
   const bl = document.querySelector('.back-link');
@@ -345,12 +345,6 @@ if (window.self !== window.top) {
     });
   }
 }
-let savedTheme = null;
-try { savedTheme = localStorage.getItem('aitools-theme'); } catch (e) {}
-if (savedTheme) applyTheme(savedTheme);
-else applyTheme(window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-
-/* ---------- toast ---------- */
 function toast(msg) {
   toastEl.textContent = msg;
   toastEl.classList.add('show');

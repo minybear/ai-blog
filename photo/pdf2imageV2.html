@@ -340,10 +340,63 @@
             }
         }
     </style>
+    <script src="../theme.js"></script>
+    <style>
+    /* pdf2imageV2 暗色主题覆盖（顶层 CSS 变量） */
+    html[data-theme="dark"] {
+        --bg: #16171a;
+        --panel: #1d1f23;
+        --border: #2c2f36;
+        --text: #e7e9ee;
+        --text-muted: #9aa0ac;
+        --accent: #4d86ff;
+        --accent-hover: #6c98ff;
+        --topbar-bg: #1d1f23;
+        --topbar-border: #2c2f36;
+        --back-bg: #16171a;
+        --back-border: #2c2f36;
+    }
+    html[data-theme="dark"] body { background-color: var(--bg); color: var(--text); }
+    html[data-theme="dark"] .container { background: var(--panel); color: var(--text); }
+    html[data-theme="dark"] .topbar { background: var(--topbar-bg); border-bottom-color: var(--topbar-border); }
+    html[data-theme="dark"] .back-link { background: var(--back-bg); border-color: var(--back-border); color: var(--accent); }
+    html[data-theme="dark"] h1 { color: var(--text); }
+    html[data-theme="dark"] h3 { color: var(--text); }
+    html[data-theme="dark"] .upload-area,
+    html[data-theme="dark"] #drop-area,
+    html[data-theme="dark"] .options,
+    html[data-theme="dark"] #progress-container,
+    html[data-theme="dark"] .results-container,
+    html[data-theme="dark"] .image-card { background-color: var(--panel); color: var(--text); border-color: var(--border); }
+    html[data-theme="dark"] .file-input-label,
+    html[data-theme="dark"] .primary-btn,
+    html[data-theme="dark"] .secondary-btn,
+    html[data-theme="dark"] .success-btn,
+    html[data-theme="dark"] .warning-btn { color: #fff; }
+    html[data-theme="dark"] select,
+    html[data-theme="dark"] input[type="range"] { background: var(--bg); color: var(--text); }
+    html[data-theme="dark"] .page-info { color: var(--text-muted); }
+    /* 主题切换按钮：放顶栏右侧 */
+    .theme-toggle {
+        margin-left: auto;
+        font-size: 13px;
+        color: var(--accent);
+        text-decoration: none;
+        padding: 6px 10px;
+        border-radius: 6px;
+        border: 1px solid var(--topbar-border, #e5e7eb);
+        background: var(--back-bg, #f6f7f9);
+        transition: all .15s;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+    .theme-toggle:hover { border-color: var(--accent); }
+    </style>
 </head>
 <body>
     <div class="topbar">
         <a class="back-link" id="backLink" href="#" title="返回工具箱">← 工具箱</a>
+        <button class="theme-toggle" id="themeToggle" title="切换主题：自动 / 浅色 / 深色">🌓</button>
     </div>
     <div class="container">
         <h1>PDF转图片工具 <span class="version-badge">V2</span></h1>
@@ -1204,7 +1257,7 @@
         });
     </script>
     <script>
-    // 「← 工具箱」回退：被首页 iframe 嵌入时隐藏；直接访问时跳到仓库根 index.html
+    /* 「← 工具箱」回退：被首页 iframe 嵌入时隐藏；直接访问时跳到仓库根 index.html */
     (function () {
       var bl = document.getElementById('backLink');
       if (!bl) return;
@@ -1217,6 +1270,16 @@
           : (segs.length > 1 ? '../' : '');
         location.href = root + 'index.html';
       });
+    })();
+
+    /* 主题切换（由 ../theme.js 提供 AIToolsTheme API） */
+    (function () {
+      var themeIcon = { auto: '🌓', light: '☀️', dark: '🌙' };
+      var btn = document.getElementById('themeToggle');
+      function paint() { if (btn) btn.textContent = themeIcon[window.AIToolsTheme.get()] || '🌓'; }
+      if (btn) btn.onclick = function () { window.AIToolsTheme.cycle(); };
+      window.AIToolsTheme.subscribe(paint);
+      paint();
     })();
     </script>
 </body>

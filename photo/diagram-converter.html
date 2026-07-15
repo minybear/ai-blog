@@ -342,6 +342,7 @@
     .logo { font-size: 13px; }
   }
 </style>
+<script src="../theme.js"></script>
 </head>
 <body data-theme-host>
   <header>
@@ -373,7 +374,7 @@
       </select>
       <button class="btn primary" id="exportPng">⬇ PNG</button>
       <button class="btn" id="exportSvg">⬇ SVG</button>
-      <button class="btn icon-only" id="themeToggle" title="切换主题">🌙</button>
+      <button class="btn icon-only" id="themeToggle" title="切换主题：自动 / 浅色 / 深色">🌓</button>
     </div>
   </header>
 
@@ -767,16 +768,19 @@ $('bgSwatches').querySelectorAll('.swatch').forEach(s => {
 });
 
 /* ---------- 主题 ---------- */
-function setTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  $('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
-  mermaidReady = false; // 重新初始化以应用主题
-  if (currentFmt === 'mermaid') scheduleRender(50);
+/* ---------- 主题（由 ../theme.js 提供 AIToolsTheme API） ---------- */
+const themeIcon = { auto: '🌓', light: '☀️', dark: '🌙' };
+function paintThemeBtn() {
+  const el = document.getElementById('themeToggle');
+  if (el) el.textContent = themeIcon[window.AIToolsTheme.get()] || '🌓';
 }
-$('themeToggle').onclick = () => {
-  const cur = document.documentElement.getAttribute('data-theme') || 'light';
-  setTheme(cur === 'dark' ? 'light' : 'dark');
-};
+document.getElementById('themeToggle').onclick = () => window.AIToolsTheme.cycle();
+// 主题变化时 Mermaid 需要重新初始化（颜色变量）
+window.AIToolsTheme.subscribe(({ effective }) => {
+  mermaidReady = false;
+  if (currentFmt === 'mermaid') scheduleRender(50);
+});
+paintThemeBtn();
 
 /* ---------- 输入处理 ---------- */
 codeEl.addEventListener('input', () => scheduleRender(400));
@@ -950,9 +954,6 @@ document.addEventListener('keydown', e => {
 previewEl.addEventListener('dblclick', openFullscreen);
 
 /* ---------- 启动 ---------- */
-// 跟随系统主题初始化
-const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-setTheme(prefersDark ? 'dark' : 'light');
 setFormat('mermaid');
 render();
 </script>
