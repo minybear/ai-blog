@@ -1,4 +1,4 @@
-import {createAtmosphere, setupSupply} from './world-ui.js?v=4';
+import {createAtmosphere, setupSupply} from './world-ui.js?v=5';
 const chapters = [
   {name:'新手村', en:'BEGINNER VILLAGE', icon:'⌂', title:'每一段冒险，都从一次好奇开始。', description:'第一次提问、第一次尝试、第一次做出东西。把起点和那些重要的转折留下来。', body:'从认识 AI 工具，到尝试解决一个身边的小问题。保持好奇，把第一次成功的输入、步骤和结果记下来，再向前走一小步。', href:'#journal', action:'看看冒险手记 ↗'},
   {name:'编程森林', en:'CODING FOREST', icon:'⌘', title:'把脑海里的想法，变成能用的作品。', description:'从需求到代码，从本地运行到部署。先用一个小工具，解决一个身边的问题。', body:'现有的 Markdown 转 PDF、图表导出和 PDF 转图片工具，是这片区域可以直接体验的作品。', href:'#works', action:'打开作品背包 ↗'},
@@ -15,6 +15,7 @@ setupSupply();
 function selectStage(index) {
   selectedStage = index;
   const chapter = chapters[index];
+  const href = chapter.href.startsWith('#') ? chapter.href : new URL(chapter.href, import.meta.url).href;
   const number = String(index + 1).padStart(2, '0');
   document.querySelectorAll('[data-stage]').forEach(button => {
     const selected = Number(button.dataset.stage) === index;
@@ -25,12 +26,12 @@ function selectStage(index) {
   document.querySelector('#stage-eyebrow').textContent = `CHAPTER ${number} / ${chapter.en}`;
   document.querySelector('#stage-title').textContent = chapter.title;
   document.querySelector('#stage-description').textContent = chapter.description;
-  document.querySelector('#stage-link').href = chapter.href;
+  document.querySelector('#stage-link').href = href;
   document.querySelector('#stage-link').setAttribute('aria-label', chapter.action.replace(' ↗', ''));
   document.querySelector('#chapter-label').textContent = `CHAPTER ${number} / ${chapter.en}`;
   document.querySelector('#chapter-title').textContent = chapter.name;
   document.querySelector('#chapter-body').textContent = chapter.body;
-  document.querySelector('#chapter-action').href = chapter.href;
+  document.querySelector('#chapter-action').href = href;
   document.querySelector('#chapter-action').textContent = chapter.action;
   selectInScene(index);
 }

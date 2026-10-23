@@ -46,7 +46,7 @@ export function setupSupply() {
     const tip = tips[index++ % tips.length];
     document.querySelector('#supply-tip-title').textContent = tip.title;
     document.querySelector('#supply-tip-body').textContent = tip.body;
-    document.querySelector('#supply-tip-link').href = tip.href;
+    document.querySelector('#supply-tip-link').href = new URL(tip.href, import.meta.url).href;
     toast.hidden = false;
     button.classList.remove('popped');
     requestAnimationFrame(() => button.classList.add('popped'));
